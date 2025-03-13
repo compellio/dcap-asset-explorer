@@ -19,7 +19,8 @@ export default function HomePage() {
       try {
         setIsLoading(true);
         setError(null);
-        const assets = await getFeaturedAssets(8);
+        // Get up to 12 assets to ensure we have enough for the fade effect to be meaningful
+        const assets = await getFeaturedAssets(12);
         
         // Check if we received a valid array
         if (Array.isArray(assets)) {
@@ -47,14 +48,6 @@ export default function HomePage() {
 
   const handleSearch = (query: string) => {
     router.push(`/search?q=${encodeURIComponent(query)}`);
-  };
-
-  const handleSearchClick = () => {
-    // Scroll to search section or focus search input
-    const searchInput = document.querySelector('input[type="text"]');
-    if (searchInput) {
-      (searchInput as HTMLInputElement).focus();
-    }
   };
 
   return (
@@ -103,16 +96,21 @@ export default function HomePage() {
           </div>
         )}
         
-        <AssetGrid 
-          assets={featuredAssets} 
-          isLoading={isLoading} 
-          emptyMessage="No featured assets available at the moment."
-        />
+        <div className="relative pb-12">
+          <AssetGrid 
+            assets={featuredAssets} 
+            isLoading={isLoading} 
+            emptyMessage="No featured assets available at the moment."
+            withFade={featuredAssets.length > 4}
+            visibleItems={4} // Show only 4 items (one row) on desktop
+            mobileVisibleItems={2} // Show only 2 items on mobile
+          />
+        </div>
         
-        <div className="mt-12 text-center">
+        <div className="mt-8 text-center">
           <button
             onClick={() => router.push('/search')}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition duration-300 ease-in-out transform hover:scale-105 cursor-pointer"
           >
             View All Assets
           </button>

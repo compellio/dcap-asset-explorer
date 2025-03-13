@@ -6,13 +6,22 @@ interface AssetGridProps {
   assets: TAR[];
   isLoading?: boolean;
   emptyMessage?: string;
+  withFade?: boolean;
+  visibleItems?: number;
+  mobileVisibleItems?: number;
 }
 
 const AssetGrid: React.FC<AssetGridProps> = ({ 
   assets, 
   isLoading = false,
-  emptyMessage = 'No assets found'
+  emptyMessage = 'No assets found',
+  withFade = false,
+  visibleItems = 0, // 0 means show all
+  mobileVisibleItems = 2
 }) => {
+  // Filter out any invalid assets
+  const validAssets = assets?.filter(asset => asset) || [];
+  
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -31,7 +40,7 @@ const AssetGrid: React.FC<AssetGridProps> = ({
     );
   }
 
-  if (!assets || assets.length === 0) {
+  if (validAssets.length === 0) {
     return (
       <div className="text-center py-10">
         <p className="text-gray-500">{emptyMessage}</p>
@@ -39,11 +48,34 @@ const AssetGrid: React.FC<AssetGridProps> = ({
     );
   }
 
+  // For desktop: Check if we need to limit the assets and if there are more to show
+  const displayedAssets = visibleItems > 0 ? validAssets.slice(0, visibleItems) : validAssets;
+  const hasMoreAssets = visibleItems > 0 && validAssets.length > visibleItems;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {assets.filter(asset => asset).map((asset, index) => (
-        <AssetCard key={`asset-${index}`} asset={asset} />
-      ))}
+    <div className="relative">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {displayedAssets.map((asset, index) => (
+          // On mobile, only show the first mobileVisibleItems
+          <div 
+            key={`asset-${index}`} 
+            className={index >= mobileVisibleItems ? 'hidden sm:block' : ''}
+          >
+            <AssetCard asset={asset} />
+          </div>
+        ))}
+      </div>
+      
+      {/* Fade effect layers - only if withFade is true and we have more assets to show */}
+      {withFade && hasMoreAssets && (
+        <>
+          {/* Gradient fade effect from top to bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-45 bg-gradient-to-t from-gray-50 via-gray-50/90 to-transparent pointer-events-none"></div>
+          
+          {/* Solid box at the bottom to completely hide card shadows and borders */}
+          <div className="absolute bottom-[-30] left-0 right-0 h-24 bg-gray-50 pointer-events-none"></div>
+        </>
+      )}
     </div>
   );
 };
