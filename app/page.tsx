@@ -58,7 +58,7 @@ export default function HomePage() {
       <div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
+            <h1 className="animated-gradient-text text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl headline-focus">
               Explore Cultural Assets
             </h1>
             <p className="mt-6 text-xl">

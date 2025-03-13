@@ -138,7 +138,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800"
+            className="inline-flex cursor-pointer items-center text-sm text-indigo-600 hover:text-indigo-800"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
             Back to results
