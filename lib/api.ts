@@ -4,6 +4,9 @@ import { TAR, SearchParams, ApiResponse, SearchResult } from '@/types';
 // Configuration values
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gateway.tst.in.compell.io';
 const SESSION_KEY = process.env.NEXT_PUBLIC_SESSION_KEY || 'nethereum';
+const DEFAULT_SEARCH_QUERY = process.env.NEXT_PUBLIC_DEFAULT_SEARCH_QUERY 
+  ? JSON.parse(process.env.NEXT_PUBLIC_DEFAULT_SEARCH_QUERY) 
+  : { "data.tar_payload.dcar.dar_id": "" };
 
 /**
  * Custom error class for API errors
@@ -148,7 +151,7 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
         endpoint,
         {
           method: 'POST',
-          body: JSON.stringify({ "data.tar_payload.dcar.dar_id": "" })
+          body: JSON.stringify(DEFAULT_SEARCH_QUERY)
         }
       );
       
@@ -283,7 +286,7 @@ export async function getFeaturedAssets(limit = 6): Promise<TAR[]> {
         endpoint,
         {
           method: 'POST',
-          body: JSON.stringify({ "data.tar_payload.dcar.dar_id": "" })
+          body: JSON.stringify(DEFAULT_SEARCH_QUERY)
         }
       );
       
