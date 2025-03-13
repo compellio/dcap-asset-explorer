@@ -123,8 +123,9 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   const assetImages = dcar.dar_digital_representations?.images || [];
   
   // Get asset information with fallbacks
-  const assetKind = rwa.rwa_kind || {};
-  const assetTitle = getSafeMultilingualValue(assetKind, 'Archaeological Artifact');
+  const assetTitle = rwa.rwa_title 
+    ? getSafeMultilingualValue(rwa.rwa_title, 'Archaeological Artifact')
+    : getSafeMultilingualValue(rwa.rwa_kind || {}, 'Archaeological Artifact');
   
   const assetDescObj = rwa.rwa_description || {};
   const assetDescription = getSafeMultilingualValue(assetDescObj, 'No description available.');

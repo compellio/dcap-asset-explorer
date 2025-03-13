@@ -23,9 +23,10 @@ const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   const rwa = tarPayload.rwa || {};
   const dcar = tarPayload.dcar || {};
   
-  // Get asset title (kind) in English or fallback to first available language or default value
-  const assetKind = rwa.rwa_kind || {};
-  const assetTitle = getSafeMultilingualValue(assetKind, 'Unknown Asset');
+  // Get asset title in English or fallback to first available language or default value
+  const assetTitle = rwa.rwa_title 
+  ? getSafeMultilingualValue(rwa.rwa_title, 'Unknown Asset')
+  : getSafeMultilingualValue(rwa.rwa_kind || {}, 'Unknown Asset');
   
   // Get asset description in English or fallback to first available language or default value
   const assetDescObj = rwa.rwa_description || {};

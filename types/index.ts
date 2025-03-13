@@ -47,6 +47,7 @@ export interface MultilingualContent {
     digital_carrier_id: string;
     digital_carrier_type: string;
     rwa_id: string;
+    rwa_title: MultilingualContent;
     rwa_kind: MultilingualContent;
     rwa_description: MultilingualContent;
     rwa_current_storage: MultilingualContent;
