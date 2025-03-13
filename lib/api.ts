@@ -179,6 +179,11 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
         const searchTerm = params.query.trim().toLowerCase();
         
         filteredAssets = assets.filter(asset => {
+          // Check if the asset ID matches first (direct match for TAR IDs)
+          if (asset.id && asset.id.toLowerCase() === searchTerm) {
+            return true;
+          }
+          
           // Extract searchable content from the asset
           const darPayload = asset.data?.tar_payload;
           if (!darPayload) return false;
@@ -194,10 +199,11 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
           
           // Check for matches in various fields
           return description.toLowerCase().includes(searchTerm) ||
-                 title.toLowerCase().includes(searchTerm) ||
-                 darId.toLowerCase().includes(searchTerm) ||
-                 systemId.toLowerCase().includes(searchTerm) ||
-                 captions.toLowerCase().includes(searchTerm);
+                title.toLowerCase().includes(searchTerm) ||
+                darId.toLowerCase().includes(searchTerm) ||
+                systemId.toLowerCase().includes(searchTerm) ||
+                captions.toLowerCase().includes(searchTerm) ||
+                (asset.id && asset.id.toLowerCase().includes(searchTerm)); // Also check for partial matches
         });
       }
       
@@ -243,6 +249,51 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
         page: 1,
         limit: 0
       };
+    }
+  });
+}
+
+/**
+ * Get an asset by its complete ID
+ */
+export async function getAssetByFullId(assetId: string): Promise<TAR | null> {
+  const endpoint = constructApiUrl('api/v1/TAR/find');
+  
+  return withRetry(async () => {
+    try {
+      // Use our existing find endpoint to get all assets
+      const response = await fetchWithErrorHandling<any>(
+        endpoint,
+        {
+          method: 'POST',
+          body: JSON.stringify(DEFAULT_SEARCH_QUERY)
+        }
+      );
+      
+      // Handle different response formats
+      let assets: TAR[] = [];
+      
+      if (Array.isArray(response)) {
+        assets = response;
+      } else if (typeof response === 'object' && response !== null) {
+        assets = [response];
+      } else {
+        console.warn('Unexpected response format:', response);
+        return null;
+      }
+      
+      // Find the asset with the matching ID
+      const matchingAsset = assets.find(asset => asset.id === assetId);
+      
+      if (!matchingAsset) {
+        console.warn(`No asset found with ID: ${assetId}`);
+        return null;
+      }
+      
+      return matchingAsset;
+    } catch (error) {
+      console.error(`Error fetching asset with ID ${assetId}:`, error);
+      return null;
     }
   });
 }

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import SearchBar from '@/components/SearchBar';
 import AssetGrid from '@/components/AssetGrid';
-import { searchAssets } from '@/lib/api';
+import { searchAssets, getAssetByFullId } from '@/lib/api';
 import { TAR } from '@/types';
 
 export default function SearchPage() {
@@ -27,7 +27,21 @@ export default function SearchPage() {
       setIsLoading(true);
       setError(null);
       
-      // Construct search parameters
+      // Check if this is a direct asset ID search
+      if (query && query.trim().startsWith('urn:tar:')) {
+        // Try to fetch the asset directly by its ID
+        const directAsset = await getAssetByFullId(query.trim());
+        
+        if (directAsset) {
+          setSearchResults([directAsset]);
+          setTotalResults(1);
+          setIsLoading(false);
+          return;
+        }
+        // If not found, continue with regular search
+      }
+      
+      // Construct search parameters for regular search
       const searchParams: any = { 
         query
       };
