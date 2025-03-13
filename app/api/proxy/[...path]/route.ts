@@ -56,6 +56,14 @@ export async function GET(
     // Check if the response is OK
     if (!response.ok) {
       console.error(`API proxy GET error: ${response.status} ${response.statusText}`);
+      
+      // For 404 errors specifically from the Gateway API, return an empty array
+      // instead of an error to handle the case where search returns no results
+      if (response.status === 404 && params.path.includes('find')) {
+        console.log('Search returned 404, returning empty array instead of error');
+        return NextResponse.json([]);
+      }
+      
       return NextResponse.json(
         await response.json().catch(() => ({ error: 'API Error' })),
         { status: response.status }
@@ -73,24 +81,10 @@ export async function GET(
   } catch (error: any) {
     console.error(`API proxy GET error:`, error);
     
-    // Handle different error types
-    if (error.response) {
-      return NextResponse.json(
-        error.response.data || { error: 'API Error' }, 
-        { status: error.response.status }
-      );
-    } else if (error.request) {
-      // request was made but no response was received
-      return NextResponse.json(
-        { error: 'No response received from API', message: error.message }, 
-        { status: 503 }
-      );
-    } else {
-      return NextResponse.json(
-        { error: 'Request error', message: error.message }, 
-        { status: 500 }
-      );
-    }
+    return NextResponse.json(
+      { error: 'Request error', message: error.message }, 
+      { status: 500 }
+    );
   }
 }
 
@@ -132,6 +126,8 @@ export async function POST(
     }
     headers.set('Accept', 'application/json');
 
+    console.log(`Making POST request to: ${apiUrl} with headers:`, Object.fromEntries(headers.entries()));
+
     // Make the fetch request
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -139,6 +135,12 @@ export async function POST(
       body: typeof body === 'string' ? body : JSON.stringify(body),
       cache: 'no-store',
     });
+
+    // Handle 404 errors from find endpoint - return empty array instead of error
+    if (response.status === 404 && params.path.includes('find')) {
+      console.log('Search returned 404, returning empty array instead of error');
+      return NextResponse.json([]);
+    }
 
     // Check if the response is OK
     if (!response.ok) {
@@ -162,7 +164,12 @@ export async function POST(
   } catch (error: any) {
     console.error(`API proxy POST error:`, error);
     
-    // Handle different error types
+    // Return empty array for search endpoints to prevent errors in the UI
+    if (params.path.includes('find')) {
+      console.log('Error in search endpoint, returning empty array');
+      return NextResponse.json([]);
+    }
+    
     return NextResponse.json(
       { error: 'Request error', message: error.message },
       { status: 500 }

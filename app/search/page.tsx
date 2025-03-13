@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import SearchBar from '@/components/SearchBar';
 import AssetGrid from '@/components/AssetGrid';
@@ -10,26 +10,17 @@ import { TAR } from '@/types';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const query = searchParams.get('q') || '';
   
   const [searchResults, setSearchResults] = useState<TAR[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [totalResults, setTotalResults] = useState<number>(0);
-  
-  // Filter states
-  const [culture, setCulture] = useState<string>('');
-  const [period, setPeriod] = useState<string>('');
-  const [material, setMaterial] = useState<string>('');
 
   useEffect(() => {
-    if (query || culture || period || material) {
-      performSearch();
-    } else {
-      // If no search criteria, load all assets
-      performSearch();
-    }
-  }, [query, culture, period, material]);
+    performSearch();
+  }, [query]);
 
   const performSearch = async () => {
     try {
@@ -37,23 +28,16 @@ export default function SearchPage() {
       setError(null);
       
       // Construct search parameters
-      const searchParams: any = { query };
-      
-      // Add filters if they are set
-      if (culture) searchParams.culture = culture;
-      if (period) searchParams.period = period;
-      if (material) searchParams.material = material;
+      const searchParams: any = { 
+        query
+      };
       
       const result = await searchAssets(searchParams);
       
       // Check if we received valid data
       if (result && Array.isArray(result.assets)) {
-        // Filter out any invalid assets
-        const validAssets = result.assets.filter(asset => 
-          asset && typeof asset === 'object'
-        );
-        setSearchResults(validAssets);
-        setTotalResults(validAssets.length);
+        setSearchResults(result.assets);
+        setTotalResults(result.total);
       } else {
         console.error('Unexpected API response format:', result);
         setError('Received unexpected data format from the API');
@@ -73,11 +57,14 @@ export default function SearchPage() {
   const handleSearch = (newQuery: string) => {
     // Update URL with the new search query
     const url = new URL(window.location.href);
-    url.searchParams.set('q', newQuery);
-    window.history.pushState({}, '', url.toString());
     
-    // Trigger search with the new query
-    performSearch();
+    if (newQuery) {
+      url.searchParams.set('q', newQuery);
+    } else {
+      url.searchParams.delete('q');
+    }
+    
+    router.push(url.pathname + url.search, { scroll: false });
   };
 
   return (
@@ -90,7 +77,6 @@ export default function SearchPage() {
           <SearchBar initialQuery={query} onSearch={handleSearch} />
         </div>
         
-        {/* Filters */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <div className="text-sm text-gray-600">
@@ -114,6 +100,12 @@ export default function SearchPage() {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-red-700">{error}</p>
+                <button 
+                  onClick={() => performSearch()} 
+                  className="mt-2 text-sm text-red-500 hover:text-red-700 underline"
+                >
+                  Try again
+                </button>
               </div>
             </div>
           </div>

@@ -11,7 +11,7 @@ const getHostname = (url: string): string => {
 };
 
 // Get image server hostname from environment
-const imageServerUrl = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL || 'http://100.127.255.164:8080';
+const imageServerUrl = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL || 'http://127.0.0.1:8080/';
 const imageServerHostname = getHostname(imageServerUrl);
 const imageServerPort = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL 
   ? new URL(process.env.NEXT_PUBLIC_IMAGE_SERVER_URL).port 

@@ -133,42 +133,22 @@ async function withRetry<T>(
 }
 
 /**
- * Search for cultural assets based on search parameters
+ * Search for cultural assets using client-side filtering
+ * This approach fetches all assets and then filters them in the client to avoid 404 errors
  */
 export async function searchAssets(params: SearchParams): Promise<SearchResult> {
   const endpoint = constructApiUrl('api/v1/TAR/find');
   
-  // Construct the appropriate query parameters for the Gateway API
-  let apiParams: Record<string, any> = {};
-  
-  // If query is provided, search by caption
-  if (params.query && params.query.trim() !== '') {
-    apiParams["data.tar_payload.dcar.dar_digital_representations.images.caption.en"] = params.query;
-  } else {
-    // Return all assets if no query is provided
-    apiParams["data.tar_payload.dcar.dar_id"] = "";
-  }
-  
-  // Add additional filter parameters if they exist
-  if (params.culture) {
-    apiParams["data.tar_payload.rwa.rwa_creation.culture.en"] = params.culture;
-  }
-  
-  if (params.period) {
-    apiParams["data.tar_payload.rwa.rwa_creation.date.en"] = params.period;
-  }
-  
-  if (params.material) {
-    apiParams["data.tar_payload.rwa.rwa_physical_properties.materials"] = params.material;
-  }
-  
   return withRetry(async () => {
     try {
+      console.log('Fetching all assets for client-side filtering');
+      
+      // Always get all assets first
       const response = await fetchWithErrorHandling<any>(
         endpoint,
         {
           method: 'POST',
-          body: JSON.stringify(apiParams),
+          body: JSON.stringify({ "data.tar_payload.dcar.dar_id": "" })
         }
       );
       
@@ -186,19 +166,71 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
         console.warn('Unexpected response format:', response);
       }
       
-      // Now validate each asset has the expected data structure
-      const validAssets = assets.filter(asset => 
-        asset && typeof asset === 'object' && asset.data && asset.data.tar_payload
-      );
+      console.log(`Retrieved ${assets.length} total assets for client-side filtering`);
       
-      console.log(`Found ${validAssets.length} valid assets from ${assets.length} total results`);
+      // Now filter assets based on search criteria
+      let filteredAssets = assets;
+      
+      // If query is provided, filter by relevant fields
+      if (params.query && params.query.trim() !== '') {
+        const searchTerm = params.query.trim().toLowerCase();
+        
+        filteredAssets = assets.filter(asset => {
+          // Extract searchable content from the asset
+          const darPayload = asset.data?.tar_payload;
+          if (!darPayload) return false;
+          
+          const description = darPayload.dcar?.dar_description?.en || '';
+          const title = darPayload.rwa?.rwa_kind?.en || '';
+          const darId = darPayload.dcar?.dar_id || '';
+          const systemId = darPayload.dcar?.dar_system_id || '';
+          
+          // Search in image captions if available
+          const images = darPayload.dcar?.dar_digital_representations?.images || [];
+          const captions = images.map(img => img.caption?.en || '').join(' ');
+          
+          // Check for matches in various fields
+          return description.toLowerCase().includes(searchTerm) ||
+                 title.toLowerCase().includes(searchTerm) ||
+                 darId.toLowerCase().includes(searchTerm) ||
+                 systemId.toLowerCase().includes(searchTerm) ||
+                 captions.toLowerCase().includes(searchTerm);
+        });
+      }
+      
+      // Add additional filter parameters if they exist
+      if (params.culture) {
+        const cultureTerm = params.culture.toLowerCase();
+        filteredAssets = filteredAssets.filter(asset => {
+          const culture = asset.data?.tar_payload?.rwa?.rwa_creation?.culture?.en || '';
+          return culture.toLowerCase().includes(cultureTerm);
+        });
+      }
+      
+      if (params.period) {
+        const periodTerm = params.period.toLowerCase();
+        filteredAssets = filteredAssets.filter(asset => {
+          const period = asset.data?.tar_payload?.rwa?.rwa_creation?.date?.en || '';
+          return period.toLowerCase().includes(periodTerm);
+        });
+      }
+      
+      if (params.material) {
+        const materialTerm = params.material.toLowerCase();
+        filteredAssets = filteredAssets.filter(asset => {
+          const materials = asset.data?.tar_payload?.rwa?.rwa_physical_properties?.materials || [];
+          return materials.some(m => m.toLowerCase().includes(materialTerm));
+        });
+      }
+      
+      console.log(`Filtered to ${filteredAssets.length} assets matching criteria`);
       
       // Transform the response to match our SearchResult interface
       return {
-        assets: validAssets,
-        total: validAssets.length,
+        assets: filteredAssets,
+        total: filteredAssets.length,
         page: 1,
-        limit: validAssets.length
+        limit: filteredAssets.length
       };
     } catch (error) {
       console.error('Error searching assets:', error);
