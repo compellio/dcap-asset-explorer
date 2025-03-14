@@ -42,12 +42,9 @@ const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   const imageUrl = images[0]?.url || '';
   const primaryImage = getFullImageUrl(imageUrl);
   
-  // Safely get culture and date
+  // Safely get culture
   const cultureObj = rwa.rwa_creation?.culture || {};
   const culture = getSafeMultilingualValue(cultureObj, 'Unknown culture');
-  
-  const dateObj = rwa.rwa_creation?.date || {};
-  const date = getSafeMultilingualValue(dateObj, 'Unknown date');
   
   // Get the asset ID for display
   const displayId = rwa.rwa_id || asset.id || 'Unknown ID';
@@ -94,9 +91,6 @@ const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           <div className="mt-4 flex items-center text-sm text-gray-500">
             <span className="inline-block bg-indigo-100 px-2 py-1 rounded text-indigo-800 text-xs">
               {culture}
-            </span>
-            <span className="ml-2">
-              {date}
             </span>
           </div>
         </div>

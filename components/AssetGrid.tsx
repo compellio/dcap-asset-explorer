@@ -73,7 +73,7 @@ const AssetGrid: React.FC<AssetGridProps> = ({
           <div className="absolute bottom-0 left-0 right-0 h-45 bg-gradient-to-t from-gray-50 via-gray-50/90 to-transparent pointer-events-none"></div>
           
           {/* Solid box at the bottom to completely hide card shadows and borders */}
-          <div className="absolute bottom-[-30] left-0 right-0 h-24 bg-gray-50 pointer-events-none"></div>
+          <div className="absolute bottom-[-50] left-0 right-0 h-24 bg-gray-50 pointer-events-none"></div>
         </>
       )}
     </div>
