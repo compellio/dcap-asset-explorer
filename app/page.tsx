@@ -62,7 +62,7 @@ export default function HomePage() {
               Explore Cultural Assets
             </h1>
             <p className="mt-6 text-xl">
-              Discover and explore the vast collection of cultural treasures.
+              Discover and explore the vast collection of cultural heritage assets.
             </p>
             <div className="mt-10">
               <SearchBar 

@@ -1,5 +1,5 @@
 // API service for Cultural Asset Management system
-import { TAR, SearchParams, ApiResponse, SearchResult } from '@/types';
+import { TAR, SearchParams, SearchResult } from '@/types';
 
 // Configuration values
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gateway.tst.in.compell.io';

@@ -3,14 +3,26 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Tab } from '@headlessui/react';
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { 
   ArrowLeftIcon, 
   InformationCircleIcon, 
   PhotoIcon, 
   BookOpenIcon,
   ShareIcon,
-  DocumentTextIcon
+  TableCellsIcon,       // For QuickInfo
+  StarIcon,             // For Significance
+  UserGroupIcon,        // For Creation Information
+  MapPinIcon,           // For Current Location
+  TagIcon,              // For Keywords
+  ScaleIcon,            // For Physical Properties
+  ArchiveBoxIcon,       // For Discovery
+  BeakerIcon,           // For Conservation
+  LanguageIcon,         // For Inscriptions
+  BookmarkIcon,         // For Bibliography
+  CubeIcon,             // For Related Objects
+  LinkIcon,             // For External Links
+  IdentificationIcon    // For Record Metadata
 } from '@heroicons/react/24/outline';
 import Header from '@/components/Header';
 import { getAssetById } from '@/lib/api';
@@ -81,18 +93,119 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-1/4 mb-6"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-gray-300 h-96 rounded-lg"></div>
-              <div>
-                <div className="h-8 bg-gray-300 rounded w-3/4 mb-4"></div>
-                <div className="h-4 bg-gray-300 rounded w-1/2 mb-6"></div>
-                <div className="space-y-3">
-                  <div className="h-4 bg-gray-300 rounded w-full"></div>
-                  <div className="h-4 bg-gray-300 rounded w-full"></div>
-                  <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Back button skeleton */}
+          <div className="mb-6">
+            <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+          </div>
+          
+          {/* Title and subtitle skeleton */}
+          <div className="mb-8 animate-pulse">
+            <div className="h-8 bg-gray-300 rounded w-2/3 md:w-1/3 mb-2"></div>
+            <div className="h-5 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left column - Images */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                {/* Main image skeleton */}
+                <div className="bg-gray-300 aspect-square rounded-lg mb-4 animate-pulse"></div>
+                
+                {/* Thumbnail gallery skeleton */}
+                <div className="grid grid-cols-4 gap-2 mb-4 animate-pulse">
+                  {[...Array(4)].map((_, index) => (
+                    <div key={index} className="bg-gray-300 aspect-square rounded"></div>
+                  ))}
+                </div>
+                
+                {/* Caption skeleton */}
+                <div className="h-4 bg-gray-300 rounded w-full mt-2 animate-pulse"></div>
+                
+                {/* Verification badge skeleton */}
+                <div className="mt-4 bg-gray-200 rounded-lg p-4 h-16 animate-pulse"></div>
+                
+                {/* Attribution skeleton */}
+                <div className="mt-4 h-3 bg-gray-300 rounded w-2/3 animate-pulse"></div>
+                
+                {/* Quick info skeleton */}
+                <div className="mt-6 border-t pt-4 border-gray-300">
+                  <div className="h-5 bg-gray-300 rounded w-1/3 mb-4 animate-pulse"></div>
+                  <div className="space-y-3">
+                    {[...Array(4)].map((_, index) => (
+                      <div key={index} className="flex justify-between animate-pulse">
+                        <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+                        <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right column - Details */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                {/* Tabs skeleton */}
+                <div className="flex space-x-1 rounded-lg bg-indigo-50 p-1 mb-6">
+                  {[...Array(3)].map((_, index) => (
+                    <div key={index} className="flex-1 py-2.5 rounded-md bg-white animate-pulse"></div>
+                  ))}
+                </div>
+                
+                {/* Tab content skeleton */}
+                <div className="space-y-6">
+                  {/* Description skeleton */}
+                  <div className="bg-indigo-50 p-4 rounded-lg animate-pulse">
+                    <div className="space-y-2">
+                      {[...Array(3)].map((_, index) => (
+                        <div key={index} className="h-4 bg-indigo-100 rounded w-full"></div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Significance section skeleton */}
+                  <div className="h-6 bg-gray-300 rounded w-1/4 mt-6 animate-pulse"></div>
+                  <div className="bg-gray-50 p-4 rounded-lg animate-pulse">
+                    <div className="space-y-2">
+                      {[...Array(4)].map((_, index) => (
+                        <div key={index} className="h-4 bg-gray-200 rounded w-full"></div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Creation Info section skeleton */}
+                  <div className="h-6 bg-gray-300 rounded w-1/4 mt-6 animate-pulse"></div>
+                  <div className="bg-white border border-gray-300 rounded-lg overflow-hidden animate-pulse">
+                    <div className="grid grid-cols-1 md:grid-cols-2">
+                      {[...Array(4)].map((_, index) => (
+                        <div key={index} className="px-4 py-3 bg-gray-50">
+                          <div className="h-4 bg-gray-300 rounded w-1/3 mb-1"></div>
+                          <div className="h-4 bg-gray-300 rounded w-2/3"></div>
+                        </div>
+                      ))}
+                      <div className="px-4 py-3 bg-gray-50 md:col-span-2">
+                        <div className="h-4 bg-gray-300 rounded w-1/3 mb-1"></div>
+                        <div className="h-4 bg-gray-300 rounded w-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Keywords skeleton */}
+                  <div className="mt-6 animate-pulse">
+                    <div className="h-6 bg-gray-300 rounded w-1/4 mb-2"></div>
+                    <div className="flex flex-wrap gap-2">
+                      {[...Array(5)].map((_, index) => (
+                        <div key={index} className="h-6 w-20 bg-indigo-100 rounded-full"></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action buttons skeleton */}
+                <div className="mt-6 border-t pt-6 border-gray-300">
+                  <div className="h-10 bg-indigo-600 rounded w-24 animate-pulse"></div>
                 </div>
               </div>
             </div>
@@ -269,7 +382,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               
               {/* Basic information card */}
               <div className="mt-6 border-t pt-4 border-gray-300">
-                <h3 className="text-lg font-semibold mb-2">Quick Info</h3>
+                <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                  <TableCellsIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                  Quick Info
+                </h3>
                 <dl className="space-y-2">
                   <div className="flex justify-between">
                     <dt className="text-sm font-medium text-gray-500">ID:</dt>
@@ -295,8 +411,8 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           {/* Right column - Details */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <Tab.Group>
-                <Tab.List className="flex space-x-1 rounded-lg bg-indigo-50 p-1 mb-6">
+              <TabGroup>
+                <TabList className="flex space-x-1 rounded-lg bg-indigo-50 p-1 mb-6">
                   <Tab className={({ selected }) =>
                     classNames(
                       'w-full py-2.5 text-sm font-medium leading-5 rounded-md',
@@ -333,28 +449,31 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     <BookOpenIcon className="h-5 w-5 mr-2" />
                     References
                   </Tab>
-                </Tab.List>
-                <Tab.Panels>
+                </TabList>
+                <TabPanels>
                   {/* Overview Panel */}
-                  <Tab.Panel>
+                  <TabPanel>
                     <div className="prose prose-indigo max-w-none">
                       <div className="bg-indigo-50 p-4 rounded-lg mb-6">
                         <p className="text-indigo-800">{assetDescription}</p>
                       </div>
                       
                       <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                        <DocumentTextIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                        <StarIcon className="h-5 w-5 mr-2 text-indigo-600" />
                         Significance
                       </h3>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <p>{getSafeMultilingualValue(rwa.rwa_significance || {}, 'No significance information available.')}</p>
                       </div>
                       
-                      <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900">Creation Information</h3>
+                      <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                        <UserGroupIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                        Creation Information
+                      </h3>
                       <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                         <dl>
-                          <div className="grid grid-cols-1 md:grid-cols-2">
-                            <div className="px-4 py-3 sm:px-6 bg-gray-50">
+                          <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
+                            <div className="px-4 py-3 sm:px-6">
                               <dt className="text-sm font-medium text-gray-500">Creator</dt>
                               <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.creator || {}, 'Unknown')}</dd>
                             </div>
@@ -366,11 +485,11 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                               <dt className="text-sm font-medium text-gray-500">Culture</dt>
                               <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.culture || {}, 'Unknown')}</dd>
                             </div>
-                            <div className="px-4 py-3 sm:px-6 bg-gray-50">
+                            <div className="px-4 py-3 sm:px-6">
                               <dt className="text-sm font-medium text-gray-500">Location</dt>
                               <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.location || {}, 'Unknown')}</dd>
                             </div>
-                            <div className="px-4 py-3 sm:px-6 bg-gray-50 md:col-span-2">
+                            <div className="px-4 py-3 sm:px-6 md:col-span-2">
                               <dt className="text-sm font-medium text-gray-500">Technique</dt>
                               <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.technique || {}, 'Unknown')}</dd>
                             </div>
@@ -378,7 +497,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         </dl>
                       </div>
                       
-                      <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900">Current Location</h3>
+                      <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                        <MapPinIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                        Current Location
+                      </h3>
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <p className="font-medium">{getSafeMultilingualValue(rwa.rwa_current_storage || {}, 'Unknown')}</p>
                         {rwa.rwa_storage_location && (
@@ -389,7 +511,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       {/* Keywords */}
                       {rwa.rwa_keywords && rwa.rwa_keywords.length > 0 && (
                         <div className="mt-6">
-                          <h3 className="text-xl font-semibold mb-2 text-gray-900">Keywords</h3>
+                          <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                            <TagIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                            Keywords
+                          </h3>
                           <div className="flex flex-wrap gap-2">
                             {rwa.rwa_keywords.map((keyword, index) => (
                               <span 
@@ -403,17 +528,20 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                       )}
                     </div>
-                  </Tab.Panel>
+                  </TabPanel>
                   
                   {/* Details Panel */}
-                  <Tab.Panel>
+                  <TabPanel>
                     <div className="space-y-6">
                       <div>
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900">Physical Properties</h3>
+                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                          <ScaleIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                          Physical Properties
+                        </h3>
                         <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                           <dl>
-                            <div className="grid grid-cols-1 md:grid-cols-2">
-                              <div className="px-4 py-3 sm:px-6 bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
+                              <div className="px-4 py-3 sm:px-6">
                                 <dt className="text-sm font-medium text-gray-500">Dimensions</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
                                   {rwa.rwa_physical_properties?.dimensions ? 
@@ -440,7 +568,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                                   }
                                 </dd>
                               </div>
-                              <div className="px-4 py-3 sm:px-6 bg-gray-50">
+                              <div className="px-4 py-3 sm:px-6">
                                 <dt className="text-sm font-medium text-gray-500">Condition</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
                                   {getSafeMultilingualValue(rwa.rwa_physical_properties?.condition || {}, 'Not specified')}
@@ -452,11 +580,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                       
                       <div>
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900">Discovery</h3>
+                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                          <ArchiveBoxIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                          Discovery
+                        </h3>
                         <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                           <dl>
-                            <div className="grid grid-cols-1 md:grid-cols-2">
-                              <div className="px-4 py-3 sm:px-6 bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
+                              <div className="px-4 py-3 sm:px-6">
                                 <dt className="text-sm font-medium text-gray-500">Discoverer</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
                                   {getSafeMultilingualValue(rwa.rwa_discovery?.discoverer || {}, 'Unknown')}
@@ -489,11 +620,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                       
                       <div>
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900">Conservation</h3>
+                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                          <BeakerIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                          Conservation
+                        </h3>
                         <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                           <dl>
-                            <div className="grid grid-cols-1 md:grid-cols-2">
-                              <div className="px-4 py-3 sm:px-6 bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
+                              <div className="px-4 py-3 sm:px-6">
                                 <dt className="text-sm font-medium text-gray-500">Status</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
                                   {getSafeMultilingualValue(rwa.rwa_conservation?.status || {}, 'Not specified')}
@@ -522,7 +656,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       {/* Inscriptions */}
                       {rwa.rwa_inscriptions && rwa.rwa_inscriptions.length > 0 && (
                         <div>
-                          <h3 className="text-xl font-semibold mb-4 text-gray-900">Inscriptions</h3>
+                          <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                            <LanguageIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                            Inscriptions
+                          </h3>
                           <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                             <ul className="divide-y divide-gray-200">
                               {rwa.rwa_inscriptions.map((inscription, index) => (
@@ -535,13 +672,16 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                       )}
                     </div>
-                  </Tab.Panel>
+                  </TabPanel>
                   
                   {/* References Panel */}
-                  <Tab.Panel>
+                  <TabPanel>
                     <div className="space-y-6">
                       <div>
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900">Bibliography</h3>
+                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                          <BookmarkIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                          Bibliography
+                        </h3>
                         {dcar.dar_references?.bibliography && dcar.dar_references.bibliography.length > 0 ? (
                           <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                             <ul className="divide-y divide-gray-200">
@@ -558,7 +698,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                       
                       <div>
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900">Related Objects</h3>
+                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                          <CubeIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                          Related Objects
+                        </h3>
                         {dcar.dar_references?.related_objects && dcar.dar_references.related_objects.length > 0 ? (
                           <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                             <ul className="divide-y divide-gray-200">
@@ -575,7 +718,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                       
                       <div>
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900">External Links</h3>
+                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                          <LinkIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                          External Links
+                        </h3>
                         {dcar.dar_references?.external_links && dcar.dar_references.external_links.length > 0 ? (
                           <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                             <ul className="divide-y divide-gray-200">
@@ -600,7 +746,10 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                       
                       <div>
-                        <h3 className="text-xl font-semibold mb-4 text-gray-900">Record Metadata</h3>
+                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
+                          <IdentificationIcon className="h-5 w-5 mr-2 text-indigo-600" />
+                          Record Metadata
+                        </h3>
                         <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
                           <dl>
                             <div className="grid grid-cols-1 md:grid-cols-2">
@@ -643,9 +792,9 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                       </div>
                     </div>
-                  </Tab.Panel>
-                </Tab.Panels>
-              </Tab.Group>
+                  </TabPanel>
+                </TabPanels>
+              </TabGroup>
               
               {/* Action buttons */}
               <div className="mt-6 flex space-x-3 border-t pt-6 border-gray-300">

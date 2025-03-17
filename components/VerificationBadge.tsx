@@ -40,7 +40,7 @@ const VerificationBadge: React.FC<VerificationBadgeProps> = ({
       <div className="flex items-center">
         <ShieldCheckIcon className="h-5 w-5 text-green-600 mr-2" />
         <span className="text-sm text-gray-700 font-medium">
-          Verified on Trustchain:
+          Verified:
         </span>
       </div>
 

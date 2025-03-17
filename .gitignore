@@ -42,3 +42,6 @@ next-env.d.ts
 
 # output css - Tailwind CSS
 app/styles/output.css
+
+# IDEA
+.idea

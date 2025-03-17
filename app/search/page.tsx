@@ -19,7 +19,10 @@ export default function SearchPage() {
   const [totalResults, setTotalResults] = useState<number>(0);
 
   useEffect(() => {
-    performSearch();
+    const fetchData = async () => {
+      await performSearch();
+    };
+    fetchData();
   }, [query]);
 
   const performSearch = async () => {
