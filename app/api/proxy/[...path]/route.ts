@@ -21,11 +21,11 @@ const constructApiUrl = (baseUrl: string, path: string[]): string => {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  context: { params: { path: string[] } }
 ) {
   try {
     // Construct the full API URL
-    const apiUrl = constructApiUrl(API_BASE_URL, params.path);
+    const apiUrl = constructApiUrl(API_BASE_URL, context.params.path);
     
     console.log(`Proxy GET request to ${apiUrl}`);
 
@@ -59,7 +59,7 @@ export async function GET(
       
       // For 404 errors specifically from the Gateway API, return an empty array
       // instead of an error to handle the case where search returns no results
-      if (response.status === 404 && params.path.includes('find')) {
+      if (response.status === 404 && context.params.path.includes('find')) {
         console.log('Search returned 404, returning empty array instead of error');
         return NextResponse.json([]);
       }
@@ -93,11 +93,11 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  context: { params: { path: string[] } }
 ) {
   try {
     // Construct the full API URL
-    const apiUrl = constructApiUrl(API_BASE_URL, params.path);
+    const apiUrl = constructApiUrl(API_BASE_URL, context.params.path);
     
     console.log(`Proxy POST request to ${apiUrl}`);
 
@@ -137,7 +137,7 @@ export async function POST(
     });
 
     // Handle 404 errors from find endpoint - return empty array instead of error
-    if (response.status === 404 && params.path.includes('find')) {
+    if (response.status === 404 && context.params.path.includes('find')) {
       console.log('Search returned 404, returning empty array instead of error');
       return NextResponse.json([]);
     }
@@ -165,7 +165,7 @@ export async function POST(
     console.error(`API proxy POST error:`, error);
     
     // Return empty array for search endpoints to prevent errors in the UI
-    if (params.path.includes('find')) {
+    if (context.params.path.includes('find')) {
       console.log('Error in search endpoint, returning empty array');
       return NextResponse.json([]);
     }
