@@ -174,7 +174,7 @@ const AssetPropertiesCard: React.FC<AssetPropertiesCardProps> = ({
         
         {shouldDisplaySection(context) && (
           <PropertyRow 
-            label="Context" 
+            label="Digital Cultural Asset Passport Profile" 
             content={<div className="font-mono text-xs bg-slate-50 p-2 rounded break-all">{context}</div>}
           />
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import Header from '@/components/Header';
@@ -19,6 +19,74 @@ import { TAR } from '@/types';
 
 const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://testnet.explorer.etherlink.com';
 
+// Function to get registration timestamp from the explorer API
+async function getRegistrationTimestamp(address: string): Promise<Date | null> {
+  try {
+    const response = await fetch(`${EXPLORER_URL}/api/v2/addresses/${address}/transactions`);
+    if (!response.ok) {
+      console.error('Error fetching transaction data:', response.statusText);
+      return null;
+    }
+    
+    const transactions = await response.json();
+    
+    if (!transactions || !transactions.items || !Array.isArray(transactions.items)) {
+      console.error('Invalid transaction data format:', transactions);
+      return null;
+    }
+    
+    const creationTx = transactions.items.find((tx: Record<string, any>) => 
+      tx['transaction_types'] && tx['transaction_types'].includes("contract_creation")
+    );
+    
+    if (!creationTx || !creationTx.timestamp) {
+      console.error('Creation transaction not found');
+      return null;
+    }
+    
+    return new Date(creationTx.timestamp);
+  } catch (error) {
+    console.error('Error fetching registration timestamp:', error);
+    return null;
+  }
+}
+
+// Function to format the date in a localized format
+function formatDate(date: Date | null): string {
+  if (!date) return 'Unknown date';
+  
+  try {
+    return date.toLocaleString(undefined, { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+}
+
+// Extract contract address from TAR ID
+function extractContractAddress(tarId: string): string | null {
+  try {
+    // TAR ID format is like "urn:tar:eip155.128123:196a014c4d4998f493bb621d2448a241cab50ce0"
+    const parts = tarId.split(':');
+    if (parts.length >= 3) {
+      const addressPart = parts[parts.length - 1];
+      // Add 0x prefix to the address
+      return `0x${addressPart}`;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error extracting contract address:', error);
+    return null;
+  }
+}
+
 export default function AssetDetailPage() {
   // Instead of receiving params via props, use the useParams hook:
   const { id } = useParams() as { id: string };
@@ -31,6 +99,8 @@ export default function AssetDetailPage() {
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  const [registrationDate, setRegistrationDate] = useState<Date | null>(null);
+  const [isLoadingDate, setIsLoadingDate] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchAssetDetails = async () => {
@@ -73,6 +143,29 @@ export default function AssetDetailPage() {
       fetchAssetDetails();
     }
   }, [id]);
+
+  // Effect to fetch registration timestamp when asset is loaded
+  useEffect(() => {
+    const fetchRegistrationDate = async () => {
+      if (!asset?.id) return;
+      
+      try {
+        setIsLoadingDate(true);
+        const contractAddress = extractContractAddress(asset.id);
+        
+        if (contractAddress) {
+          const timestamp = await getRegistrationTimestamp(contractAddress);
+          setRegistrationDate(timestamp);
+        }
+      } catch (error) {
+        console.error('Error fetching registration date:', error);
+      } finally {
+        setIsLoadingDate(false);
+      }
+    };
+
+    fetchRegistrationDate();
+  }, [asset?.id]);
 
   // Handle image click to open modal
   const handleImageClick = () => {
@@ -180,15 +273,18 @@ export default function AssetDetailPage() {
               onImageClick={handleImageClick}
             />
               
-            {asset.id && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="p-4">
-                  <div className="flex items-center mb-2">
-                    <svg className="h-5 w-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div className="text-sm font-bold text-slate-800">Verified:</div>
-                  </div>
+          {asset.id && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center mb-3">
+                  <svg className="h-5 w-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-sm font-bold text-slate-800">Digital Cultural Asset Passport</div>
+                </div>
+                
+                <div className="mb-3">
+                  <div className="text-xs font-bold text-slate-700 mb-1">Token Id:</div>
                   <div className="relative text-sm text-slate-600 bg-slate-50 p-2 rounded flex items-center justify-between">
                     <span className="truncate mr-2">
                       {asset.id.length > 45 
@@ -236,6 +332,22 @@ export default function AssetDetailPage() {
                           </svg>
                         </a>
                       )}
+                    </div>
+                  </div>
+                </div>
+                
+                  <div className="mt-3">
+                    <div className="text-xs font-bold text-slate-700 mb-1">Registered At:</div>
+                    <div className="text-sm text-slate-600">
+                      {isLoadingDate ? (
+                        <span className="inline-flex items-center">
+                          <svg className="animate-spin h-3 w-3 mr-2 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Loading registration date...
+                        </span>
+                      ) : formatDate(registrationDate)}
                     </div>
                   </div>
                 </div>
