@@ -4,7 +4,7 @@ import { DCConcept, DCLanguageValue } from '@/types';
 import { getConceptLabel } from '@/utils/assetUtils';
 
 interface ConceptLinkProps {
-  concept: DCConcept | DCLanguageValue | any;
+  concept: DCConcept | DCLanguageValue | Record<string, unknown>;
 }
 
 const ConceptLink: React.FC<ConceptLinkProps> = ({ concept }) => {
@@ -16,20 +16,20 @@ const ConceptLink: React.FC<ConceptLinkProps> = ({ concept }) => {
   }
   
   // Handle language value objects
-  if (concept["@language"] && concept["@value"]) {
+  if ('@language' in concept && '@value' in concept) {
     return (
-      <span className="text-slate-700">{concept["@value"]}</span>
+      <span className="text-slate-700">{String(concept["@value"])}</span>
     );
   }
   
   // Handle concept/authority objects
   if (concept["@id"]) {
     const label = getConceptLabel(concept, 'Unknown');
-    const id = concept["@id"];
-    const type = concept["@type"] || '';
+    const id = concept["@id"] as string;
+    const type = typeof concept["@type"] === 'string' ? concept["@type"] : String(concept["@type"] || '');
     
     // Make the URL clickable if it's a valid web URL
-    const isValidUrl = id.startsWith('http://') || id.startsWith('https://');
+    const isValidUrl = typeof id === 'string' && (id.startsWith('http://') || id.startsWith('https://'));
     
     return (
       <div className="relative">

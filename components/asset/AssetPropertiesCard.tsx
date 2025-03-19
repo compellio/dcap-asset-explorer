@@ -1,18 +1,19 @@
 import React from 'react';
 import { shouldDisplaySection } from '@/utils/assetDetailUtils';
 import ConceptLink from './ConceptLink';
+import { DCConcept, DCLanguageValue, DCAgent } from '@/types';
 
 interface AssetPropertiesCardProps {
   description: string;
-  types: any[];
-  subjects: any[];
-  creators: any[];
+  types: Array<DCConcept | DCLanguageValue>;
+  subjects: Array<DCConcept | DCLanguageValue>;
+  creators: Array<DCConcept | DCAgent | DCLanguageValue>;
   dates: string[];
   identifiers: string[];
   languages: string[];
-  locations: any[];
-  sources: any[];
-  collections: any[];
+  locations: Array<DCConcept | DCLanguageValue>;
+  sources: Array<DCLanguageValue>;
+  collections: Array<DCLanguageValue>;
   id?: string;
   receipt?: string;
   context?: string;

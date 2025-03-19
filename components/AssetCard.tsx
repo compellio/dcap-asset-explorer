@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { TAR, DCConcept, DCLanguageValue } from '@/types';
+import { TAR, DCConcept } from '@/types'; // Removed unused DCLanguageValue
 import { getAssetId, getSafeMultilingualValue, getFirstItemLabel, getTextContent } from '@/utils/assetUtils';
 import { getThumbnailUrl, getPlaceholderImage } from '@/utils/imageUtils';
 
@@ -10,13 +10,8 @@ interface AssetCardProps {
 }
 
 // Type guard function to check if an object is a DCConcept
-function isDCConcept(obj: any): obj is DCConcept {
-  return obj && typeof obj === 'object' && '@id' in obj && '@type' in obj && 'prefLabel' in obj;
-}
-
-// Type guard function to check if an object is a DCLanguageValue
-function isDCLanguageValue(obj: any): obj is DCLanguageValue {
-  return obj && typeof obj === 'object' && '@language' in obj && '@value' in obj;
+function isDCConcept(obj: unknown): obj is DCConcept {
+  return obj !== null && typeof obj === 'object' && '@id' in obj && '@type' in obj && 'prefLabel' in obj;
 }
 
 const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {

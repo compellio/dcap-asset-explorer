@@ -7,8 +7,8 @@ const SESSION_KEY = process.env.NEXT_PUBLIC_SESSION_KEY || 'nethereum';
  * Constructs a full API URL from the base URL and path segments
  */
 const constructApiUrl = (baseUrl: string, path: string[]): string => {
-  const normalizedBaseUrl = baseUrl.endsWith('/') 
-    ? baseUrl.slice(0, -1) 
+  const normalizedBaseUrl = baseUrl.endsWith('/')
+    ? baseUrl.slice(0, -1)
     : baseUrl;
   
   const pathSegment = path.join('/');
@@ -16,88 +16,61 @@ const constructApiUrl = (baseUrl: string, path: string[]): string => {
   return `${normalizedBaseUrl}/${pathSegment}`;
 };
 
-/**
- * Handles GET requests to the proxy API
- */
+// GET route handler with updated parameter type
 export async function GET(
   request: NextRequest,
-  context: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const { path } = await params;
   try {
-    // Construct the full API URL
-    const apiUrl = constructApiUrl(API_BASE_URL, context.params.path);
-    
-    console.log(`Proxy GET request to ${apiUrl}`);
-
-    // Get URL search params
     const searchParams = request.nextUrl.searchParams.toString();
+    const apiUrl = constructApiUrl(API_BASE_URL, path);
     const fullUrl = searchParams ? `${apiUrl}?${searchParams}` : apiUrl;
 
-    // Prepare headers
     const headers = new Headers();
     request.headers.forEach((value, key) => {
-      // Don't forward host and connection-related headers
       if (!['host', 'connection', 'content-length'].includes(key.toLowerCase())) {
         headers.set(key, value);
       }
     });
-
-    // Add session key
     headers.set('x-session-key', SESSION_KEY);
     headers.set('Accept', 'application/json');
 
-    // Make the fetch request
     const response = await fetch(fullUrl, {
       method: 'GET',
       headers,
       cache: 'no-store',
     });
 
-    // Check if the response is OK
     if (!response.ok) {
-      console.error(`API proxy GET error: ${response.status} ${response.statusText}`);
-      
-      // For 404 errors specifically from the Gateway API, return an empty array
-      // instead of an error to handle the case where search returns no results
-      if (response.status === 404 && context.params.path.includes('find')) {
-        console.log('Search returned 404, returning empty array instead of error');
+      if (response.status === 404 && path.includes('find')) {
         return NextResponse.json([]);
       }
-      
       return NextResponse.json(
         await response.json().catch(() => ({ error: 'API Error' })),
         { status: response.status }
       );
     }
 
-    // Return the response
     const data = await response.json();
-    console.log(`Proxy GET request to ${apiUrl} successful:`, {
-      status: response.status,
-      dataLength: JSON.stringify(data).length
-    });
-
     return NextResponse.json(data);
-  } catch (error: any) {
-    console.error(`API proxy GET error:`, error);
-    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Request error', message: error.message }, 
+      { error: 'Request error', message: errorMessage },
       { status: 500 }
     );
   }
 }
 
-/**
- * Handles POST requests to the proxy API
- */
+// POST route handler with updated parameter type
 export async function POST(
   request: NextRequest,
-  context: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const { path } = await params;
   try {
-    // Construct the full API URL
-    const apiUrl = constructApiUrl(API_BASE_URL, context.params.path);
+    const apiUrl = constructApiUrl(API_BASE_URL, path);
     
     console.log(`Proxy POST request to ${apiUrl}`);
 
@@ -113,7 +86,6 @@ export async function POST(
     // Prepare headers
     const headers = new Headers();
     request.headers.forEach((value, key) => {
-      // Don't forward host and connection-related headers
       if (!['host', 'connection', 'content-length'].includes(key.toLowerCase())) {
         headers.set(key, value);
       }
@@ -137,12 +109,11 @@ export async function POST(
     });
 
     // Handle 404 errors from find endpoint - return empty array instead of error
-    if (response.status === 404 && context.params.path.includes('find')) {
+    if (response.status === 404 && path.includes('find')) {
       console.log('Search returned 404, returning empty array instead of error');
       return NextResponse.json([]);
     }
 
-    // Check if the response is OK
     if (!response.ok) {
       console.error(`API proxy POST error: ${response.status} ${response.statusText}`);
       return NextResponse.json(
@@ -151,7 +122,6 @@ export async function POST(
       );
     }
 
-    // Return the response
     const data = await response.json();
     console.log(`Proxy POST request to ${apiUrl} successful:`, {
       status: response.status,
@@ -161,17 +131,15 @@ export async function POST(
     });
 
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error) {
     console.error(`API proxy POST error:`, error);
-    
-    // Return empty array for search endpoints to prevent errors in the UI
-    if (context.params.path.includes('find')) {
+    if (path.includes('find')) {
       console.log('Error in search endpoint, returning empty array');
       return NextResponse.json([]);
     }
-    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Request error', message: error.message },
+      { error: 'Request error', message: errorMessage },
       { status: 500 }
     );
   }

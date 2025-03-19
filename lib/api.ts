@@ -2,8 +2,6 @@
 import { TAR, SearchParams, SearchResult } from '@/types';
 import { 
   getSafeMultilingualValue, 
-  getTextFromLanguageValueArray, 
-  getConceptLabel,
   getTextContent,
   getAllConceptLabels
 } from '@/utils/assetUtils';
@@ -21,9 +19,9 @@ const DEFAULT_SEARCH_QUERY = process.env.NEXT_PUBLIC_DEFAULT_SEARCH_QUERY
 export class ApiError extends Error {
   public statusCode?: number;
   public isNetworkError: boolean;
-  public originalError: any;
+  public originalError: unknown;
 
-  constructor(message: string, statusCode?: number, originalError?: any) {
+  constructor(message: string, statusCode?: number, originalError?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.statusCode = statusCode;
@@ -96,7 +94,7 @@ async function fetchWithErrorHandling<T>(
 
     // Handle other errors
     throw new ApiError(
-      (error as Error).message || 'An unexpected error occurred',
+      (error instanceof Error) ? error.message : 'An unexpected error occurred',
       undefined,
       error
     );
@@ -154,7 +152,7 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
       console.log('Fetching all assets for client-side filtering');
       
       // Get all DCAPv2 assets
-      const response = await fetchWithErrorHandling<any>(
+      const response = await fetchWithErrorHandling<unknown>(
         endpoint,
         {
           method: 'POST',
@@ -171,7 +169,7 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
         assets = response;
       } else if (typeof response === 'object' && response !== null) {
         // If it's a single object, wrap it in an array
-        assets = [response];
+        assets = [response as TAR];
       } else {
         console.warn('Unexpected response format:', response);
       }
@@ -286,7 +284,7 @@ export async function getAssetByFullId(assetId: string): Promise<TAR | null> {
   return withRetry(async () => {
     try {
       // First try to find the asset with the exact context
-      const response = await fetchWithErrorHandling<any>(
+      const response = await fetchWithErrorHandling<unknown>(
         endpoint,
         {
           method: 'POST',
@@ -302,7 +300,7 @@ export async function getAssetByFullId(assetId: string): Promise<TAR | null> {
       if (Array.isArray(response)) {
         assets = response;
       } else if (typeof response === 'object' && response !== null) {
-        assets = [response];
+        assets = [response as TAR];
       } else {
         console.warn('Unexpected response format:', response);
         return null;
@@ -322,7 +320,7 @@ export async function getAssetByFullId(assetId: string): Promise<TAR | null> {
       
       // If that fails, try to get all assets and find the matching one
       try {
-        const allAssets = await fetchWithErrorHandling<any>(
+        const allAssets = await fetchWithErrorHandling<unknown>(
           endpoint,
           {
             method: 'POST',
@@ -335,7 +333,7 @@ export async function getAssetByFullId(assetId: string): Promise<TAR | null> {
         if (Array.isArray(allAssets)) {
           assets = allAssets;
         } else if (typeof allAssets === 'object' && allAssets !== null) {
-          assets = [allAssets];
+          assets = [allAssets as TAR];
         } else {
           return null;
         }
@@ -357,7 +355,7 @@ export async function getAssetById(receiptId: string): Promise<TAR | null> {
   
   return withRetry(async () => {
     try {
-      const response = await fetchWithErrorHandling<any>(endpoint);
+      const response = await fetchWithErrorHandling<unknown>(endpoint);
       
       // Check if response is a valid asset
       if (!response || typeof response !== 'object') {
@@ -394,7 +392,7 @@ export async function getFeaturedAssets(limit = 6): Promise<TAR[]> {
   return withRetry(async () => {
     try {
       // Get all DCAPv2 assets
-      const response = await fetchWithErrorHandling<any>(
+      const response = await fetchWithErrorHandling<unknown>(
         endpoint,
         {
           method: 'POST',
@@ -415,7 +413,7 @@ export async function getFeaturedAssets(limit = 6): Promise<TAR[]> {
         assets = response;
       } else if (typeof response === 'object' && response !== null) {
         // If it's a single object, wrap it in an array
-        assets = [response];
+        assets = [response as TAR];
       } else {
         console.warn('Unexpected response format:', response);
         return [];

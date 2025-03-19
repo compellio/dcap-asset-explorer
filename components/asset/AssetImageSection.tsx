@@ -1,11 +1,12 @@
 import React from 'react';
 import Image from 'next/image';
 import { createPlaceholderSVG } from '@/utils/assetDetailUtils';
+import { DCConcept, DCLanguageValue, DCAgent } from '@/types';
 
 interface AssetImageSectionProps {
   imageUrl: string | null;
   title: string;
-  creators: any[];
+  creators: Array<DCConcept | DCLanguageValue | DCAgent>;
   dates: string[];
   imageLoaded: boolean;
   onImageLoad: () => void;
