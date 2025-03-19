@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeftIcon,
-  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import Header from '@/components/Header';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -58,11 +57,16 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           setImageUrl(thumbnailUrl);
         }
         
-        // Check if asset has content in a specific language and set it as default
+        // Determine the best language to use
         if (assetData.data?.["dc:title"]) {
           const availableLanguages = Object.keys(assetData.data["dc:title"]);
+          
           if (availableLanguages.length > 0) {
-            if (!availableLanguages.includes('en')) {
+            // If English is available, use it
+            if (availableLanguages.includes('en')) {
+              setSelectedLanguage('en');
+            } else {
+              // Otherwise use the first available language
               setSelectedLanguage(availableLanguages[0]);
             }
           }
@@ -92,11 +96,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     setImageLoaded(true);
   };
 
-  // Handler for language change
-  const handleLanguageChange = (language: string) => {
-    setSelectedLanguage(language);
-  };
-
   // If loading, show skeleton
   if (isLoading) {
     return (
@@ -117,35 +116,14 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  // Extract available languages from the asset
-  const availableLanguages: string[] = [];
-  
-  if (asset.data?.["dc:title"]) {
-    Object.keys(asset.data["dc:title"]).forEach(lang => {
-      if (!availableLanguages.includes(lang)) {
-        availableLanguages.push(lang);
-      }
-    });
-  }
-  
-  if (asset.data?.["dc:description"]) {
-    if (typeof asset.data["dc:description"] === 'object' && !Array.isArray(asset.data["dc:description"])) {
-      Object.keys(asset.data["dc:description"]).forEach(lang => {
-        if (!availableLanguages.includes(lang)) {
-          availableLanguages.push(lang);
-        }
-      });
-    }
-  }
-
-  // Extract asset details with language preference
+  // Extract asset details with selected language
   const assetTitle = getSafeMultilingualValue(
     asset.data?.["dc:title"], 
     'Untitled Asset',
     selectedLanguage
   );
   
-  // Extract description with language preference
+  // Extract description with selected language
   const assetDescription = getTextContent(
     asset.data?.["dc:description"], 
     '',
@@ -201,13 +179,8 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             </button>
           </div>
           
-          {/* Asset Header with Title and Language Selector */}
-          <AssetHeader
-            title={assetTitle}
-            availableLanguages={availableLanguages}
-            selectedLanguage={selectedLanguage}
-            onLanguageChange={handleLanguageChange}
-          />
+          {/* Asset Header with Title */}
+          <AssetHeader title={assetTitle} />
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left column - Image and verification only */}

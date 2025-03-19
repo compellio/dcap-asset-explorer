@@ -18,10 +18,7 @@ const ConceptLink: React.FC<ConceptLinkProps> = ({ concept }) => {
   // Handle language value objects
   if (concept["@language"] && concept["@value"]) {
     return (
-      <div className="flex items-center gap-1">
-        <span className="text-slate-700">{concept["@value"]}</span>
-        <span className="text-xs bg-slate-200 px-1 rounded text-slate-600">{concept["@language"]}</span>
-      </div>
+      <span className="text-slate-700">{concept["@value"]}</span>
     );
   }
   
