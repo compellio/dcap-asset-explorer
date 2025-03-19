@@ -1,5 +1,7 @@
 import md5 from 'crypto-js/md5';
 
+const S3_BUCKET_URL = process.env.NEXT_PUBLIC_S3_BUCKET_URL || 'https://dcap-viewer-assets.s3.eu-central-1.amazonaws.com';
+
 /**
  * Generates a thumbnail URL for a DCAPv2 asset based on its TAR ID
  * 
@@ -10,7 +12,7 @@ export function getThumbnailUrl(tarId: string): string {
   if (!tarId) return '/placeholder-image.jpg';
   
   const hash = md5(tarId).toString();
-  return `https://dcap-viewer-assets.s3.eu-central-1.amazonaws.com/v2/${hash}.jpg`;
+  return `${S3_BUCKET_URL}/v2/${hash}.jpg`;
 }
 
 /**

@@ -32,7 +32,6 @@ const AssetPropertiesCard: React.FC<AssetPropertiesCardProps> = ({
   locations,
   sources,
   collections,
-  receipt,
   context,
   checksum,
   version
@@ -170,13 +169,6 @@ const AssetPropertiesCard: React.FC<AssetPropertiesCardProps> = ({
                 ))}
               </div>
             }
-          />
-        )}
-        
-        {shouldDisplaySection(receipt) && (
-          <PropertyRow 
-            label="Receipt ID" 
-            content={<div className="font-mono bg-slate-50 p-2 rounded">{receipt}</div>}
           />
         )}
         

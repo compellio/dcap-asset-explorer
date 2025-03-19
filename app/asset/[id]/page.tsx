@@ -17,6 +17,8 @@ import AssetImageSection from '@/components/asset/AssetImageSection';
 import AssetPropertiesCard from '@/components/asset/AssetPropertiesCard';
 import { TAR } from '@/types';
 
+const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://testnet.explorer.etherlink.com';
+
 export default function AssetDetailPage() {
   // Instead of receiving params via props, use the useParams hook:
   const { id } = useParams() as { id: string };
@@ -129,6 +131,23 @@ export default function AssetDetailPage() {
   const assetCollections = asset.data?.["dcterms:isPartOf"] || [];
   const assetLanguages = asset.data?.["dc:language"] || [];
 
+  // Extract contract address from TAR ID for explorer link
+  const getExplorerUrl = (tarId: string) => {
+    try {
+      // TAR ID format is like "urn:tar:eip155.128123:196a014c4d4998f493bb621d2448a241cab50ce0"
+      const parts = tarId.split(':');
+      if (parts.length >= 3) {
+        const addressPart = parts[parts.length - 1];
+        // Add 0x prefix to the address
+        return `${EXPLORER_URL}/address/0x${addressPart}`;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error parsing TAR ID for explorer link:', error);
+      return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Header />
@@ -203,13 +222,13 @@ export default function AssetDetailPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                       </button>
-                      {asset.id.includes('eip155') && (
+                      {asset.id && asset.id.includes('eip155') && (
                         <a
-                          href={`https://sepolia.etherscan.io/address/${asset.id.split(':').pop()}`}
+                          href={getExplorerUrl(asset.id) ?? undefined}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1 bg-white rounded-md shadow hover:bg-gray-100"
-                          title="View on Etherscan"
+                          title="View on Etherlink Explorer"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
