@@ -1,12 +1,19 @@
 // API service for Cultural Asset Management system
 import { TAR, SearchParams, SearchResult } from '@/types';
+import { 
+  getSafeMultilingualValue, 
+  getTextFromLanguageValueArray, 
+  getConceptLabel,
+  getTextContent,
+  getAllConceptLabels
+} from '@/utils/assetUtils';
 
 // Configuration values
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.gateway.tst.in.compell.io';
 const SESSION_KEY = process.env.NEXT_PUBLIC_SESSION_KEY || 'nethereum';
 const DEFAULT_SEARCH_QUERY = process.env.NEXT_PUBLIC_DEFAULT_SEARCH_QUERY 
   ? JSON.parse(process.env.NEXT_PUBLIC_DEFAULT_SEARCH_QUERY) 
-  : { "data.tar_payload.dcar.dar_id": "" };
+  : { "data.@context": "urn:tar:eip155.128123:d58d92934ad6a8739429d210ef9841bbec57f28f" };
 
 /**
  * Custom error class for API errors
@@ -137,7 +144,7 @@ async function withRetry<T>(
 
 /**
  * Search for cultural assets using client-side filtering
- * This approach fetches all assets and then filters them in the client to avoid 404 errors
+ * Optimized for DCAPv2 format
  */
 export async function searchAssets(params: SearchParams): Promise<SearchResult> {
   const endpoint = constructApiUrl('api/v1/TAR/find');
@@ -146,7 +153,7 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
     try {
       console.log('Fetching all assets for client-side filtering');
       
-      // Always get all assets first
+      // Get all DCAPv2 assets
       const response = await fetchWithErrorHandling<any>(
         endpoint,
         {
@@ -184,26 +191,33 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
             return true;
           }
           
-          // Extract searchable content from the asset
-          const darPayload = asset.data?.tar_payload;
-          if (!darPayload) return false;
+          // DCAPv2 format - search in title, description, subject, type, etc.
+          const title = asset.data?.["dc:title"] 
+            ? getSafeMultilingualValue(asset.data["dc:title"], '') 
+            : '';
           
-          const description = darPayload.dcar?.dar_description?.en || '';
-          const title = darPayload.rwa?.rwa_kind?.en || '';
-          const darId = darPayload.dcar?.dar_id || '';
-          const systemId = darPayload.dcar?.dar_system_id || '';
+          // Handle description (can be object or array)
+          const description = getTextContent(asset.data?.["dc:description"], '');
           
-          // Search in image captions if available
-          const images = darPayload.dcar?.dar_digital_representations?.images || [];
-          const captions = images.map(img => img.caption?.en || '').join(' ');
+          // Try to extract concepts from subject and type
+          const subjects = asset.data?.["dc:subject"] || [];
+          const types = asset.data?.["dc:type"] || [];
           
-          // Check for matches in various fields
-          return description.toLowerCase().includes(searchTerm) ||
-                title.toLowerCase().includes(searchTerm) ||
-                darId.toLowerCase().includes(searchTerm) ||
-                systemId.toLowerCase().includes(searchTerm) ||
-                captions.toLowerCase().includes(searchTerm) ||
-                (asset.id && asset.id.toLowerCase().includes(searchTerm)); // Also check for partial matches
+          const extractedConcepts = [
+            ...getAllConceptLabels(subjects),
+            ...getAllConceptLabels(types)
+          ];
+          
+          // Check creator
+          const creators = asset.data?.["dc:creator"] || [];
+          const creatorLabels = getAllConceptLabels(creators);
+          
+          // Check all searchable fields
+          return title.toLowerCase().includes(searchTerm) ||
+                 description.toLowerCase().includes(searchTerm) ||
+                 extractedConcepts.some(c => c.toLowerCase().includes(searchTerm)) ||
+                 creatorLabels.some(c => c.toLowerCase().includes(searchTerm)) ||
+                 (asset.id && asset.id.toLowerCase().includes(searchTerm));
         });
       }
       
@@ -211,24 +225,34 @@ export async function searchAssets(params: SearchParams): Promise<SearchResult> 
       if (params.culture) {
         const cultureTerm = params.culture.toLowerCase();
         filteredAssets = filteredAssets.filter(asset => {
-          const culture = asset.data?.tar_payload?.rwa?.rwa_creation?.culture?.en || '';
-          return culture.toLowerCase().includes(cultureTerm);
+          // Check creator, dc:type and dc:subject for culture references
+          const types = asset.data?.["dc:type"] || [];
+          const subjects = asset.data?.["dc:subject"] || [];
+          const creators = asset.data?.["dc:creator"] || [];
+          
+          const extractedConcepts = [
+            ...getAllConceptLabels(types),
+            ...getAllConceptLabels(subjects),
+            ...getAllConceptLabels(creators)
+          ];
+          
+          return extractedConcepts.some(c => c.toLowerCase().includes(cultureTerm));
         });
       }
       
       if (params.period) {
         const periodTerm = params.period.toLowerCase();
         filteredAssets = filteredAssets.filter(asset => {
-          const period = asset.data?.tar_payload?.rwa?.rwa_creation?.date?.en || '';
-          return period.toLowerCase().includes(periodTerm);
-        });
-      }
-      
-      if (params.material) {
-        const materialTerm = params.material.toLowerCase();
-        filteredAssets = filteredAssets.filter(asset => {
-          const materials = asset.data?.tar_payload?.rwa?.rwa_physical_properties?.materials || [];
-          return materials.some(m => m.toLowerCase().includes(materialTerm));
+          // Check date and created fields
+          const dates = asset.data?.["dc:date"] || [];
+          const created = asset.data?.["dcterms:created"] || [];
+          
+          // Combine all date references
+          const allDates = [...dates, ...created];
+          
+          return allDates.some(date => 
+            date.toString().toLowerCase().includes(periodTerm)
+          );
         });
       }
       
@@ -261,12 +285,14 @@ export async function getAssetByFullId(assetId: string): Promise<TAR | null> {
   
   return withRetry(async () => {
     try {
-      // Use our existing find endpoint to get all assets
+      // First try to find the asset with the exact context
       const response = await fetchWithErrorHandling<any>(
         endpoint,
         {
           method: 'POST',
-          body: JSON.stringify(DEFAULT_SEARCH_QUERY)
+          body: JSON.stringify({
+            id: assetId
+          })
         }
       );
       
@@ -293,7 +319,32 @@ export async function getAssetByFullId(assetId: string): Promise<TAR | null> {
       return matchingAsset;
     } catch (error) {
       console.error(`Error fetching asset with ID ${assetId}:`, error);
-      return null;
+      
+      // If that fails, try to get all assets and find the matching one
+      try {
+        const allAssets = await fetchWithErrorHandling<any>(
+          endpoint,
+          {
+            method: 'POST',
+            body: JSON.stringify(DEFAULT_SEARCH_QUERY)
+          }
+        );
+        
+        let assets: TAR[] = [];
+        
+        if (Array.isArray(allAssets)) {
+          assets = allAssets;
+        } else if (typeof allAssets === 'object' && allAssets !== null) {
+          assets = [allAssets];
+        } else {
+          return null;
+        }
+        
+        return assets.find(asset => asset.id === assetId) || null;
+      } catch (secondError) {
+        console.error(`Second attempt to fetch asset with ID ${assetId} failed:`, secondError);
+        return null;
+      }
     }
   });
 }
@@ -317,22 +368,32 @@ export async function getAssetById(receiptId: string): Promise<TAR | null> {
       return response as TAR;
     } catch (error) {
       console.error(`Error fetching asset with ID ${receiptId}:`, error);
-      return null;
+      
+      // If direct ID lookup fails, try searching in all assets
+      try {
+        const allAssets = await searchAssets({ query: '' });
+        return allAssets.assets.find(asset => 
+          asset.receipt === receiptId || 
+          asset.id === receiptId
+        ) || null;
+      } catch (secondError) {
+        console.error(`Second attempt to fetch asset with ID ${receiptId} failed:`, secondError);
+        return null;
+      }
     }
   });
 }
 
 /**
  * Get featured assets for the homepage
- * Since there's no specific endpoint for featured assets,
- * we'll use the find endpoint to get all assets
+ * Optimized for DCAPv2 format
  */
 export async function getFeaturedAssets(limit = 6): Promise<TAR[]> {
   const endpoint = constructApiUrl('api/v1/TAR/find');
   
   return withRetry(async () => {
     try {
-      // Get all assets and limit them client-side
+      // Get all DCAPv2 assets
       const response = await fetchWithErrorHandling<any>(
         endpoint,
         {
@@ -362,7 +423,13 @@ export async function getFeaturedAssets(limit = 6): Promise<TAR[]> {
       
       // Filter out any invalid assets and limit to requested number
       return assets
-        .filter(asset => asset && typeof asset === 'object')
+        .filter(asset => 
+          asset && 
+          typeof asset === 'object' && 
+          asset.data && 
+          asset.data["@type"] && 
+          asset.data["@type"].includes("dcap:CulturalHeritageObject")
+        )
         .slice(0, limit);
     } catch (error) {
       console.error('Error fetching featured assets:', error);

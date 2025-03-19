@@ -17,14 +17,22 @@ const imageServerPort = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL
   ? new URL(process.env.NEXT_PUBLIC_IMAGE_SERVER_URL).port 
   : '8080';
 
+// S3 bucket for DCAPv2 images
+const s3BucketDomain = "dcap-viewer-assets.s3.eu-central-1.amazonaws.com";
+
 const nextConfig: NextConfig = {
   images: {
-    domains: [imageServerHostname],
+    domains: [imageServerHostname, s3BucketDomain],
     remotePatterns: [
       {
         protocol: 'http',
         hostname: imageServerHostname,
         port: imageServerPort,
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: s3BucketDomain,
         pathname: '/**',
       },
     ],

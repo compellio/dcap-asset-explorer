@@ -2,52 +2,41 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { 
-  ArrowLeftIcon, 
-  InformationCircleIcon, 
-  PhotoIcon, 
-  BookOpenIcon,
-  ShareIcon,
-  TableCellsIcon,       // For QuickInfo
-  StarIcon,             // For Significance
-  UserGroupIcon,        // For Creation Information
-  MapPinIcon,           // For Current Location
-  TagIcon,              // For Keywords
-  ScaleIcon,            // For Physical Properties
-  ArchiveBoxIcon,       // For Discovery
-  BeakerIcon,           // For Conservation
-  LanguageIcon,         // For Inscriptions
-  BookmarkIcon,         // For Bibliography
-  CubeIcon,             // For Related Objects
-  LinkIcon,             // For External Links
-  IdentificationIcon    // For Record Metadata
+  ArrowLeftIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import Header from '@/components/Header';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { getAssetById } from '@/lib/api';
-import { TAR } from '@/types';
-import { getFullImageUrl } from '@/utils/imageUtils';
-import { getSafeMultilingualValue } from '@/utils/assetUtils';
+import { getThumbnailUrl } from '@/utils/imageUtils';
+import { 
+  getAssetId, 
+  getSafeMultilingualValue,
+  getTextContent
+} from '@/utils/assetUtils';
 import ImageModal from '@/components/ImageModal';
-import VerificationBadge from '@/components/VerificationBadge';
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}
+// Asset detail components
+import AssetDetailSkeleton from '@/components/asset/AssetDetailSkeleton';
+import AssetNotFound from '@/components/asset/AssetNotFound';
+import AssetHeader from '@/components/asset/AssetHeader';
+import AssetImageSection from '@/components/asset/AssetImageSection';
+import AssetPropertiesCard from '@/components/asset/AssetPropertiesCard';
 
 export default function AssetDetailPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
-  // Properly unwrap params in Next.js 15
   const unwrappedParams = params instanceof Promise ? React.use(params) : params;
   const { id } = unwrappedParams;
   
   const router = useRouter();
   
-  const [asset, setAsset] = useState<TAR | null>(null);
+  const [asset, setAsset] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageLoaded, setImageLoaded] = useState<boolean>(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
 
   useEffect(() => {
     const fetchAssetDetails = async () => {
@@ -63,12 +52,20 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         
         setAsset(assetData);
         
-        // Get the images array safely
-        const images = assetData?.data?.tar_payload?.dcar?.dar_digital_representations?.images || [];
+        // Set the thumbnail image
+        if (assetData.id) {
+          const thumbnailUrl = getThumbnailUrl(assetData.id);
+          setImageUrl(thumbnailUrl);
+        }
         
-        // Set the first image as selected by default
-        if (images.length > 0 && images[0]?.url) {
-          setSelectedImage(images[0].url);
+        // Check if asset has content in a specific language and set it as default
+        if (assetData.data?.["dc:title"]) {
+          const availableLanguages = Object.keys(assetData.data["dc:title"]);
+          if (availableLanguages.length > 0) {
+            if (!availableLanguages.includes('en')) {
+              setSelectedLanguage(availableLanguages[0]);
+            }
+          }
         }
       } catch (err) {
         console.error('Error fetching asset details:', err);
@@ -83,742 +80,250 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [id]);
 
+  // Handle image click to open modal
   const handleImageClick = () => {
-    if (selectedImage) {
-      setIsModalOpen(true);
+    if (imageUrl && imageLoaded) {
+      setIsImageModalOpen(true);
     }
   };
 
+  // Handle image load event
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+  };
+
+  // Handler for language change
+  const handleLanguageChange = (language: string) => {
+    setSelectedLanguage(language);
+  };
+
+  // If loading, show skeleton
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <AssetDetailSkeleton />
+      </div>
+    );
+  }
+
+  // If error or no asset, show error state
+  if (error || !asset) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Header />
+        <AssetNotFound error={error} onBack={() => router.back()} />
+      </div>
+    );
+  }
+
+  // Extract available languages from the asset
+  const availableLanguages: string[] = [];
+  
+  if (asset.data?.["dc:title"]) {
+    Object.keys(asset.data["dc:title"]).forEach(lang => {
+      if (!availableLanguages.includes(lang)) {
+        availableLanguages.push(lang);
+      }
+    });
+  }
+  
+  if (asset.data?.["dc:description"]) {
+    if (typeof asset.data["dc:description"] === 'object' && !Array.isArray(asset.data["dc:description"])) {
+      Object.keys(asset.data["dc:description"]).forEach(lang => {
+        if (!availableLanguages.includes(lang)) {
+          availableLanguages.push(lang);
+        }
+      });
+    }
+  }
+
+  // Extract asset details with language preference
+  const assetTitle = getSafeMultilingualValue(
+    asset.data?.["dc:title"], 
+    'Untitled Asset',
+    selectedLanguage
+  );
+  
+  // Extract description with language preference
+  const assetDescription = getTextContent(
+    asset.data?.["dc:description"], 
+    '',
+    selectedLanguage
+  );
+  
+  // Extract creator information
+  const assetCreators = asset.data?.["dc:creator"] || [];
+  
+  // Extract date information
+  const assetDates = asset.data?.["dcterms:created"] && asset.data["dcterms:created"].length > 0
+    ? asset.data["dcterms:created"]
+    : (asset.data?.["dc:date"] && asset.data["dc:date"].length > 0
+      ? asset.data["dc:date"]
+      : []);
+  
+  // Extract type information
+  const assetTypes = asset.data?.["dc:type"] || [];
+  
+  // Extract subject information
+  const assetSubjects = asset.data?.["dc:subject"] || [];
+  
+  // Extract location information
+  const assetLocations = asset.data?.["dcterms:spatial"] || [];
+  
+  // Extract identifier information
+  const assetIdentifiers = asset.data?.["dc:identifier"] || [];
+    
+  // Extract source information
+  const assetSources = asset.data?.["dc:source"] || [];
+    
+  // Extract part of collection information
+  const assetCollections = asset.data?.["dcterms:isPartOf"] || [];
+    
+  // Extract language information
+  const assetLanguages = asset.data?.["dc:language"] || [];
+
+  return (
+    <ErrorBoundary>
+      <div className="min-h-screen bg-slate-50">
         <Header />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Back button skeleton */}
+          {/* Back button */}
           <div className="mb-6">
-            <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+            <button
+              onClick={() => router.back()}
+              className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+              aria-label="Go back to previous page"
+            >
+              <ArrowLeftIcon className="h-4 w-4 mr-1" />
+              Back to results
+            </button>
           </div>
           
-          {/* Title and subtitle skeleton */}
-          <div className="mb-8 animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-2/3 md:w-1/3 mb-2"></div>
-            <div className="h-5 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
-          </div>
+          {/* Asset Header with Title and Language Selector */}
+          <AssetHeader
+            title={assetTitle}
+            availableLanguages={availableLanguages}
+            selectedLanguage={selectedLanguage}
+            onLanguageChange={handleLanguageChange}
+          />
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left column - Images */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                {/* Main image skeleton */}
-                <div className="bg-gray-300 aspect-square rounded-lg mb-4 animate-pulse"></div>
-                
-                {/* Thumbnail gallery skeleton */}
-                <div className="grid grid-cols-4 gap-2 mb-4 animate-pulse">
-                  {[...Array(4)].map((_, index) => (
-                    <div key={index} className="bg-gray-300 aspect-square rounded"></div>
-                  ))}
-                </div>
-                
-                {/* Caption skeleton */}
-                <div className="h-4 bg-gray-300 rounded w-full mt-2 animate-pulse"></div>
-                
-                {/* Verification badge skeleton */}
-                <div className="mt-4 bg-gray-200 rounded-lg p-4 h-16 animate-pulse"></div>
-                
-                {/* Attribution skeleton */}
-                <div className="mt-4 h-3 bg-gray-300 rounded w-2/3 animate-pulse"></div>
-                
-                {/* Quick info skeleton */}
-                <div className="mt-6 border-t pt-4 border-gray-300">
-                  <div className="h-5 bg-gray-300 rounded w-1/3 mb-4 animate-pulse"></div>
-                  <div className="space-y-3">
-                    {[...Array(4)].map((_, index) => (
-                      <div key={index} className="flex justify-between animate-pulse">
-                        <div className="h-4 bg-gray-300 rounded w-1/3"></div>
-                        <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left column - Image and verification only */}
+            <div className="lg:col-span-5 space-y-6">
+              {/* Main image and creator/date info */}
+              <AssetImageSection
+                imageUrl={imageUrl}
+                title={assetTitle}
+                creators={assetCreators}
+                dates={assetDates}
+                imageLoaded={imageLoaded}
+                onImageLoad={handleImageLoad}
+                onImageClick={handleImageClick}
+              />
+              
+              {/* Verification information with truncated ID and copy feedback */}
+              {asset.id && (
+                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="p-4">
+                    <div className="flex items-center mb-2">
+                      <svg className="h-5 w-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="text-sm font-bold text-slate-800">Verified:</div>
+                    </div>
+                    <div className="relative text-sm text-slate-600 bg-slate-50 p-2 rounded flex items-center justify-between">
+                      <span className="truncate mr-2">
+                        {asset.id.length > 45 
+                          ? `${asset.id.substring(0, 22)}...${asset.id.substring(asset.id.length - 22)}`
+                          : asset.id
+                        }
+                      </span>
+                      <div className="flex-shrink-0 flex space-x-1">
+                        <button 
+                          id="copy-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(asset.id);
+                            
+                            // Visual feedback element
+                            const button = document.getElementById('copy-button');
+                            const originalInnerHTML = button?.innerHTML;
+                            
+                            if (button) {
+                              button.innerHTML = `<svg class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                              </svg>`;
+                              
+                              setTimeout(() => {
+                                if (button && originalInnerHTML) {
+                                  button.innerHTML = originalInnerHTML;
+                                }
+                              }, 1500);
+                            }
+                          }}
+                          className="p-1 bg-white rounded-md shadow hover:bg-gray-100"
+                          title="Copy to clipboard"
+                        >
+                          <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                        {asset.id.includes('eip155') && (
+                          <a
+                            href={`https://sepolia.etherscan.io/address/${asset.id.split(':').pop()}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 bg-white rounded-md shadow hover:bg-gray-100"
+                            title="View on Etherscan"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        )}
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
             
-            {/* Right column - Details */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                {/* Tabs skeleton */}
-                <div className="flex space-x-1 rounded-lg bg-indigo-50 p-1 mb-6">
-                  {[...Array(3)].map((_, index) => (
-                    <div key={index} className="flex-1 py-2.5 rounded-md bg-white animate-pulse"></div>
-                  ))}
-                </div>
-                
-                {/* Tab content skeleton */}
-                <div className="space-y-6">
-                  {/* Description skeleton */}
-                  <div className="bg-indigo-50 p-4 rounded-lg animate-pulse">
-                    <div className="space-y-2">
-                      {[...Array(3)].map((_, index) => (
-                        <div key={index} className="h-4 bg-indigo-100 rounded w-full"></div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Significance section skeleton */}
-                  <div className="h-6 bg-gray-300 rounded w-1/4 mt-6 animate-pulse"></div>
-                  <div className="bg-gray-50 p-4 rounded-lg animate-pulse">
-                    <div className="space-y-2">
-                      {[...Array(4)].map((_, index) => (
-                        <div key={index} className="h-4 bg-gray-200 rounded w-full"></div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Creation Info section skeleton */}
-                  <div className="h-6 bg-gray-300 rounded w-1/4 mt-6 animate-pulse"></div>
-                  <div className="bg-white border border-gray-300 rounded-lg overflow-hidden animate-pulse">
-                    <div className="grid grid-cols-1 md:grid-cols-2">
-                      {[...Array(4)].map((_, index) => (
-                        <div key={index} className="px-4 py-3 bg-gray-50">
-                          <div className="h-4 bg-gray-300 rounded w-1/3 mb-1"></div>
-                          <div className="h-4 bg-gray-300 rounded w-2/3"></div>
-                        </div>
-                      ))}
-                      <div className="px-4 py-3 bg-gray-50 md:col-span-2">
-                        <div className="h-4 bg-gray-300 rounded w-1/3 mb-1"></div>
-                        <div className="h-4 bg-gray-300 rounded w-full"></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Keywords skeleton */}
-                  <div className="mt-6 animate-pulse">
-                    <div className="h-6 bg-gray-300 rounded w-1/4 mb-2"></div>
-                    <div className="flex flex-wrap gap-2">
-                      {[...Array(5)].map((_, index) => (
-                        <div key={index} className="h-6 w-20 bg-indigo-100 rounded-full"></div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Action buttons skeleton */}
-                <div className="mt-6 border-t pt-6 border-gray-300">
-                  <div className="h-10 bg-indigo-600 rounded w-24 animate-pulse"></div>
-                </div>
-              </div>
+            {/* Right column - All properties in one card */}
+            <div className="lg:col-span-7">
+              <AssetPropertiesCard
+                description={assetDescription}
+                types={assetTypes}
+                subjects={assetSubjects}
+                creators={assetCreators}
+                dates={assetDates}
+                identifiers={assetIdentifiers}
+                languages={assetLanguages}
+                locations={assetLocations}
+                sources={assetSources}
+                collections={assetCollections}
+                id={asset.id}
+                receipt={asset.receipt}
+                context={asset.data["@context"]}
+                checksum={asset.checksum}
+                version={asset.version}
+              />
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !asset) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error || 'Asset not found'}</p>
-                <button
-                  onClick={() => router.back()}
-                  className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-                >
-                  Go back
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Safely access the nested data structure
-  const tarPayload = asset.data?.tar_payload || {};
-  const rwa = tarPayload.rwa || {};
-  const dcar = tarPayload.dcar || {};
-  
-  // Get images array safely
-  const assetImages = dcar.dar_digital_representations?.images || [];
-  
-  // Get asset information with fallbacks
-  const assetTitle = rwa.rwa_title 
-    ? getSafeMultilingualValue(rwa.rwa_title, 'Archaeological Artifact')
-    : getSafeMultilingualValue(rwa.rwa_kind || {}, 'Archaeological Artifact');
-  
-  const assetDescObj = rwa.rwa_description || {};
-  const assetDescription = getSafeMultilingualValue(assetDescObj, 'No description available.');
-
-  // Get the selected image caption
-  const selectedImageCaption = selectedImage 
-    ? getSafeMultilingualValue(assetImages.find(img => img.url === selectedImage)?.caption || {}, '')
-    : '';
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back button and breadcrumbs */}
-        <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex cursor-pointer items-center text-sm text-indigo-600 hover:text-indigo-800"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Back to results
-          </button>
         </div>
         
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{assetTitle}</h1>
-          <p className="mt-2 text-gray-500 italic">
-            {getSafeMultilingualValue(rwa.rwa_kind || {}, 'Archaeological Artifact')}
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left column - Images */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              {/* Main image */}
-              <div 
-                className="bg-gray-100 rounded-lg overflow-hidden mb-4 relative aspect-square cursor-pointer transition-all hover:shadow-lg"
-                onClick={handleImageClick}
-              >
-                {selectedImage && (
-                  <div className="relative h-full w-full flex items-center justify-center">
-                    <Image
-                      src={getFullImageUrl(selectedImage)}
-                      alt={assetTitle}
-                      fill
-                      className="object-contain"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                    {/* Overlay with zoom hint */}
-                    <div
-                      className="
-                        absolute 
-                        inset-0 
-                        transition-opacity 
-                        flex 
-                        items-center 
-                        justify-center 
-                        opacity-0 
-                        hover:opacity-100 
-                        bg-white/20 
-                        backdrop-blur-md
-                      "
-                    >
-                      <span 
-                        className="
-                          bg-white 
-                          bg-opacity-75 
-                          rounded-md 
-                          px-3 
-                          py-1 
-                          text-sm
-                        "
-                      >
-                        Click to enlarge
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Thumbnail gallery */}
-              {assetImages.length > 1 && (
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  {assetImages.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(image.url)}
-                      className={classNames(
-                        "relative aspect-square rounded overflow-hidden border-2 border-gray-300",
-                        selectedImage === image.url ? "border-indigo-500" : "border-transparent hover:border-gray-300"
-                      )}
-                    >
-                      <Image
-                        src={getFullImageUrl(image.url)}
-                        alt={`${assetTitle} - View ${index + 1}`}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 25vw, 10vw"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-              
-              {/* Image caption */}
-              {selectedImageCaption && (
-                <div className="mt-2 text-sm text-gray-600">
-                  {selectedImageCaption}
-                </div>
-              )}
-              
-              {/* Verification badge */}
-              {asset.id && (
-                <div className="mt-4">
-                  <VerificationBadge id={asset.id} />
-                </div>
-              )}
-              
-              {/* Image attribution */}
-              <div className="mt-4 text-xs text-gray-500">
-                {dcar.dar_rights?.attribution || '© All rights reserved'}
-              </div>
-              
-              {/* Basic information card */}
-              <div className="mt-6 border-t pt-4 border-gray-300">
-                <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                  <TableCellsIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                  Quick Info
-                </h3>
-                <dl className="space-y-2">
-                  <div className="flex justify-between">
-                    <dt className="text-sm font-medium text-gray-500">ID:</dt>
-                    <dd className="text-sm text-gray-900">{rwa.rwa_id || 'Unknown'}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm font-medium text-gray-500">Institution:</dt>
-                    <dd className="text-sm text-gray-900">{getSafeMultilingualValue(dcar.dar_institution || {}, 'Unknown')}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm font-medium text-gray-500">Period:</dt>
-                    <dd className="text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.date || {}, 'Unknown')}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm font-medium text-gray-500">Origin:</dt>
-                    <dd className="text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.location || {}, 'Unknown')}</dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-          </div>
-          
-          {/* Right column - Details */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <TabGroup>
-                <TabList className="flex space-x-1 rounded-lg bg-indigo-50 p-1 mb-6">
-                  <Tab className={({ selected }) =>
-                    classNames(
-                      'w-full py-2.5 text-sm font-medium leading-5 rounded-md',
-                      'flex items-center justify-center',
-                      selected
-                        ? 'bg-white text-indigo-700 shadow'
-                        : 'text-gray-600 hover:bg-white/[0.12] hover:text-indigo-600'
-                    )
-                  }>
-                    <InformationCircleIcon className="h-5 w-5 mr-2" />
-                    Overview
-                  </Tab>
-                  <Tab className={({ selected }) =>
-                    classNames(
-                      'w-full py-2.5 text-sm font-medium leading-5 rounded-md',
-                      'flex items-center justify-center',
-                      selected
-                        ? 'bg-white text-indigo-700 shadow'
-                        : 'text-gray-600 hover:bg-white/[0.12] hover:text-indigo-600'
-                    )
-                  }>
-                    <PhotoIcon className="h-5 w-5 mr-2" />
-                    Details
-                  </Tab>
-                  <Tab className={({ selected }) =>
-                    classNames(
-                      'w-full py-2.5 text-sm font-medium leading-5 rounded-md',
-                      'flex items-center justify-center',
-                      selected
-                        ? 'bg-white text-indigo-700 shadow'
-                        : 'text-gray-600 hover:bg-white/[0.12] hover:text-indigo-600'
-                    )
-                  }>
-                    <BookOpenIcon className="h-5 w-5 mr-2" />
-                    References
-                  </Tab>
-                </TabList>
-                <TabPanels>
-                  {/* Overview Panel */}
-                  <TabPanel>
-                    <div className="prose prose-indigo max-w-none">
-                      <div className="bg-indigo-50 p-4 rounded-lg mb-6">
-                        <p className="text-indigo-800">{assetDescription}</p>
-                      </div>
-                      
-                      <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                        <StarIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                        Significance
-                      </h3>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <p>{getSafeMultilingualValue(rwa.rwa_significance || {}, 'No significance information available.')}</p>
-                      </div>
-                      
-                      <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                        <UserGroupIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                        Creation Information
-                      </h3>
-                      <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                        <dl>
-                          <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
-                            <div className="px-4 py-3 sm:px-6">
-                              <dt className="text-sm font-medium text-gray-500">Creator</dt>
-                              <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.creator || {}, 'Unknown')}</dd>
-                            </div>
-                            <div className="px-4 py-3 sm:px-6">
-                              <dt className="text-sm font-medium text-gray-500">Date</dt>
-                              <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.date || {}, 'Unknown')}</dd>
-                            </div>
-                            <div className="px-4 py-3 sm:px-6">
-                              <dt className="text-sm font-medium text-gray-500">Culture</dt>
-                              <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.culture || {}, 'Unknown')}</dd>
-                            </div>
-                            <div className="px-4 py-3 sm:px-6">
-                              <dt className="text-sm font-medium text-gray-500">Location</dt>
-                              <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.location || {}, 'Unknown')}</dd>
-                            </div>
-                            <div className="px-4 py-3 sm:px-6 md:col-span-2">
-                              <dt className="text-sm font-medium text-gray-500">Technique</dt>
-                              <dd className="mt-1 text-sm text-gray-900">{getSafeMultilingualValue(rwa.rwa_creation?.technique || {}, 'Unknown')}</dd>
-                            </div>
-                          </div>
-                        </dl>
-                      </div>
-                      
-                      <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                        <MapPinIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                        Current Location
-                      </h3>
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="font-medium">{getSafeMultilingualValue(rwa.rwa_current_storage || {}, 'Unknown')}</p>
-                        {rwa.rwa_storage_location && (
-                          <p className="text-sm mt-1">{getSafeMultilingualValue(rwa.rwa_storage_location, '')}</p>
-                        )}
-                      </div>
-                      
-                      {/* Keywords */}
-                      {rwa.rwa_keywords && rwa.rwa_keywords.length > 0 && (
-                        <div className="mt-6">
-                          <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                            <TagIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                            Keywords
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {rwa.rwa_keywords.map((keyword, index) => (
-                              <span 
-                                key={index}
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                              >
-                                {keyword}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </TabPanel>
-                  
-                  {/* Details Panel */}
-                  <TabPanel>
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                          <ScaleIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                          Physical Properties
-                        </h3>
-                        <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                          <dl>
-                            <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Dimensions</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {rwa.rwa_physical_properties?.dimensions ? 
-                                    `${rwa.rwa_physical_properties.dimensions.length} × ${rwa.rwa_physical_properties.dimensions.width} × ${rwa.rwa_physical_properties.dimensions.height} ${rwa.rwa_physical_properties.dimensions.unit}` : 
-                                    'Not specified'
-                                  }
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Weight</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {rwa.rwa_physical_properties?.weight ? 
-                                    `${rwa.rwa_physical_properties.weight.value} ${rwa.rwa_physical_properties.weight.unit}` : 
-                                    'Not specified'
-                                  }
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Materials</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {rwa.rwa_physical_properties?.materials ? 
-                                    rwa.rwa_physical_properties.materials.join(', ') : 
-                                    'Not specified'
-                                  }
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Condition</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {getSafeMultilingualValue(rwa.rwa_physical_properties?.condition || {}, 'Not specified')}
-                                </dd>
-                              </div>
-                            </div>
-                          </dl>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                          <ArchiveBoxIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                          Discovery
-                        </h3>
-                        <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                          <dl>
-                            <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Discoverer</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {getSafeMultilingualValue(rwa.rwa_discovery?.discoverer || {}, 'Unknown')}
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Date</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {rwa.rwa_discovery?.discovery_date ? 
-                                    new Date(rwa.rwa_discovery.discovery_date).toLocaleDateString() : 
-                                    'Unknown'
-                                  }
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Location</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {getSafeMultilingualValue(rwa.rwa_discovery?.discovery_location || {}, 'Unknown')}
-                                </dd>
-                              </div>
-                            </div>
-                            <div className="px-4 py-3 sm:px-6 bg-gray-50 border-t border-gray-300">
-                              <dt className="text-sm font-medium text-gray-500">Discovery Context</dt>
-                              <dd className="mt-1 text-sm text-gray-900">
-                                {getSafeMultilingualValue(rwa.rwa_discovery?.discovery_context || {}, 'No context information available.')}
-                              </dd>
-                            </div>
-                          </dl>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                          <BeakerIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                          Conservation
-                        </h3>
-                        <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                          <dl>
-                            <div className="grid grid-cols-1 md:grid-cols-2 bg-gray-50">
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Status</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {getSafeMultilingualValue(rwa.rwa_conservation?.status || {}, 'Not specified')}
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Last Assessment</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {rwa.rwa_conservation?.last_assessment ? 
-                                    new Date(rwa.rwa_conservation.last_assessment).toLocaleDateString() : 
-                                    'Not specified'
-                                  }
-                                </dd>
-                              </div>
-                            </div>
-                            <div className="px-4 py-3 sm:px-6 bg-gray-50 border-t border-gray-300">
-                              <dt className="text-sm font-medium text-gray-500">Special Requirements</dt>
-                              <dd className="mt-1 text-sm text-gray-900">
-                                {getSafeMultilingualValue(rwa.rwa_conservation?.special_requirements || {}, 'None specified')}
-                              </dd>
-                            </div>
-                          </dl>
-                        </div>
-                      </div>
-                      
-                      {/* Inscriptions */}
-                      {rwa.rwa_inscriptions && rwa.rwa_inscriptions.length > 0 && (
-                        <div>
-                          <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                            <LanguageIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                            Inscriptions
-                          </h3>
-                          <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                            <ul className="divide-y divide-gray-200">
-                              {rwa.rwa_inscriptions.map((inscription, index) => (
-                                <li key={index} className="px-4 py-3">
-                                  <p className="text-sm text-gray-900">{inscription}</p>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </TabPanel>
-                  
-                  {/* References Panel */}
-                  <TabPanel>
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                          <BookmarkIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                          Bibliography
-                        </h3>
-                        {dcar.dar_references?.bibliography && dcar.dar_references.bibliography.length > 0 ? (
-                          <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                            <ul className="divide-y divide-gray-200">
-                              {dcar.dar_references.bibliography.map((reference, index) => (
-                                <li key={index} className="px-4 py-3 text-sm">
-                                  {reference}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-lg">No bibliography available.</p>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                          <CubeIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                          Related Objects
-                        </h3>
-                        {dcar.dar_references?.related_objects && dcar.dar_references.related_objects.length > 0 ? (
-                          <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                            <ul className="divide-y divide-gray-200">
-                              {dcar.dar_references.related_objects.map((object, index) => (
-                                <li key={index} className="px-4 py-3 text-sm">
-                                  {object}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-lg">No related objects available.</p>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                          <LinkIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                          External Links
-                        </h3>
-                        {dcar.dar_references?.external_links && dcar.dar_references.external_links.length > 0 ? (
-                          <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                            <ul className="divide-y divide-gray-200">
-                              {dcar.dar_references.external_links.map((link, index) => (
-                                <li key={index} className="px-4 py-3 text-sm">
-                                  <a 
-                                    href={link} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-indigo-600 hover:text-indigo-800 hover:underline flex items-center"
-                                  >
-                                    {link}
-                                    <ArrowLeftIcon className="h-4 w-4 ml-1 rotate-45" />
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-lg">No external links available.</p>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <h3 className="text-xl font-semibold mt-6 mb-2 text-gray-900 flex items-center">
-                          <IdentificationIcon className="h-5 w-5 mr-2 text-indigo-600" />
-                          Record Metadata
-                        </h3>
-                        <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
-                          <dl>
-                            <div className="grid grid-cols-1 md:grid-cols-2">
-                              <div className="px-4 py-3 sm:px-6 bg-gray-50">
-                                <dt className="text-sm font-medium text-gray-500">Record ID</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{dcar.dar_id || 'Not specified'}</dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">System ID</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{dcar.dar_system_id || 'Not specified'}</dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Cataloger</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{dcar.dar_metadata?.cataloger || 'Not specified'}</dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6 bg-gray-50">
-                                <dt className="text-sm font-medium text-gray-500">Catalog Date</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {dcar.dar_metadata?.catalog_date ? 
-                                    new Date(dcar.dar_metadata.catalog_date).toLocaleDateString() : 
-                                    'Not specified'
-                                  }
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6 bg-gray-50">
-                                <dt className="text-sm font-medium text-gray-500">Last Modified</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                  {dcar.dar_metadata?.last_modified ? 
-                                    new Date(dcar.dar_metadata.last_modified).toLocaleString() : 
-                                    'Not specified'
-                                  }
-                                </dd>
-                              </div>
-                              <div className="px-4 py-3 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500">Record Status</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{dcar.dar_metadata?.record_status || 'Not specified'}</dd>
-                              </div>
-                            </div>
-                          </dl>
-                        </div>
-                      </div>
-                    </div>
-                  </TabPanel>
-                </TabPanels>
-              </TabGroup>
-              
-              {/* Action buttons */}
-              <div className="mt-6 flex space-x-3 border-t pt-6 border-gray-300">
-                <button
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <ShareIcon className="h-5 w-5 mr-2" />
-                  Share
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Image Modal */}
+        {imageUrl && (
+          <ImageModal
+            imageUrl={imageUrl}
+            altText={assetTitle}
+            isOpen={isImageModalOpen}
+            onClose={() => setIsImageModalOpen(false)}
+          />
+        )}
       </div>
-      
-      {/* Full screen image modal */}
-      {selectedImage && (
-        <ImageModal
-          imageUrl={selectedImage}
-          altText={selectedImageCaption || assetTitle}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-        />
-      )}
-    </div>
+    </ErrorBoundary>
   );
 }

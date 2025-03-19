@@ -1,7 +1,7 @@
+// components/ImageModal.tsx
 import React, { useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
-import { getFullImageUrl } from "@/utils/imageUtils";
 
 interface ImageModalProps {
     imageUrl: string;
@@ -9,6 +9,12 @@ interface ImageModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
+
+// Create a base64 placeholder SVG for missing images
+const createPlaceholderSVG = (width = 800, height = 600, text = 'No Image') => {
+  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#EAEAEA"/><text x="50%" y="50%" font-family="Arial" font-size="24" fill="#777777" text-anchor="middle" dy=".3em">${text}</text></svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+};
 
 const ImageModal: React.FC<ImageModalProps> = ({
     imageUrl,
@@ -45,8 +51,6 @@ const ImageModal: React.FC<ImageModalProps> = ({
 
     if (!isOpen) return null;
 
-    const fullImageUrl = getFullImageUrl(imageUrl);
-
     return (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4">
             <div className="absolute top-4 right-4">
@@ -62,12 +66,14 @@ const ImageModal: React.FC<ImageModalProps> = ({
             <div className="w-full h-full flex items-center justify-center">
                 <div className="relative w-full h-full max-w-6xl max-h-[90vh] flex items-center justify-center">
                     <Image
-                        src={fullImageUrl}
+                        src={imageUrl}
                         alt={altText}
                         fill
                         className="object-contain"
                         sizes="(max-width: 768px) 100vw, 80vw"
                         priority
+                        placeholder="blur"
+                        blurDataURL={createPlaceholderSVG()}
                     />
                 </div>
             </div>

@@ -1,29 +1,16 @@
-/**
- * Utility functions for image handling
- */
-
-const IMAGE_SERVER_URL = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL || 'http://100.127.255.164:8080';
-const PLACEHOLDER_IMAGE = '/placeholder-image.jpg';
+import md5 from 'crypto-js/md5';
 
 /**
- * Formats an image URL to use the correct image server
- * @param urlPath The image path or URL fragment
- * @returns Full URL to the image on the image server
+ * Generates a thumbnail URL for a DCAPv2 asset based on its TAR ID
+ * 
+ * @param tarId The TAR ID of the asset
+ * @returns The URL to the asset's thumbnail image
  */
-export function getFullImageUrl(urlPath: string): string {
-  if (!urlPath || urlPath.trim() === '') {
-    return PLACEHOLDER_IMAGE;
-  }
+export function getThumbnailUrl(tarId: string): string {
+  if (!tarId) return '/placeholder-image.jpg';
   
-  // If path already includes a protocol (http/https), just return it
-  if (urlPath.startsWith('http://') || urlPath.startsWith('https://')) {
-    return urlPath;
-  }
-  
-  // Make sure the path starts with /
-  const normalizedPath = urlPath.startsWith('/') ? urlPath : `/${urlPath}`;
-  
-  return `${IMAGE_SERVER_URL}${normalizedPath}`;
+  const hash = md5(tarId).toString();
+  return `https://dcap-viewer-assets.s3.eu-central-1.amazonaws.com/v2/${hash}.jpg`;
 }
 
 /**
