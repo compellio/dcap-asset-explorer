@@ -10,12 +10,6 @@ const getHostname = (url: string): string => {
   }
 };
 
-// Get image server hostname from environment
-const imageServerUrl = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL || 'http://127.0.0.1:8080/';
-const imageServerHostname = getHostname(imageServerUrl);
-const imageServerPort = process.env.NEXT_PUBLIC_IMAGE_SERVER_URL 
-  ? new URL(process.env.NEXT_PUBLIC_IMAGE_SERVER_URL).port 
-  : '8080';
 
 // S3 bucket for DCAPv2 images
 const s3BucketUrl = process.env.NEXT_PUBLIC_S3_BUCKET_URL || 'https://dcap-viewer-assets.s3.eu-central-1.amazonaws.com';
@@ -23,14 +17,8 @@ const s3BucketDomain = getHostname(s3BucketUrl);
 
 const nextConfig: NextConfig = {
   images: {
-    domains: [imageServerHostname, s3BucketDomain],
+    domains: [s3BucketDomain],
     remotePatterns: [
-      {
-        protocol: 'http',
-        hostname: imageServerHostname,
-        port: imageServerPort,
-        pathname: '/**',
-      },
       {
         protocol: 'https',
         hostname: s3BucketDomain,
